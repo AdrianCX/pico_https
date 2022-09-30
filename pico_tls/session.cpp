@@ -87,6 +87,8 @@ err_t Session::http_recv(void *arg, struct altcp_pcb *pcb, struct pbuf *p, err_t
         // Try and fix up any pcb and memory, something is terribly bad if we reached this.
         if (p != NULL)
         {
+            // Confirm we've processed the data
+            altcp_recved(pcb, p->tot_len);
             pbuf_free(p);
         }
 
