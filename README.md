@@ -7,35 +7,44 @@ A simple 'hello world' is provided as example.
 
 ### How to compile:
 
-1. Install pico dependencies
-```
-sudo apt install cmake gcc-arm-none-eabi libnewlib-arm-none-eabi
-```
-
-2. Fetch submodules
-```
-git submodule update --init --recursive
-```
-
-3. Configure wifi in example (otherwise it won't connect):
-```
-hello_world/config/wifi.h
-```
-
-4. Configure certificates
-
+1. Create certificates or insert your own.
 ```
 cd pico_tls/certificate
 ./create_cert.sh
 ```
-
 This generates a self signed certificate in key.h/cert.h.
 Alternative is to create a 'certificate' folder with same file format anywhere else in include path.
 
-5. Build
 
-Run ./build.sh OR build it via cmake yourself.
+2. Configure wifi in example (otherwise it won't connect):
+```
+hello_world/config/wifi.h
+```
 
+3. Fetch submodules
+
+```
+git submodule update --init --recursive
+```
+
+4. Build - do one of the following based on preference
+
+Option 1: Use a docker build image
+```
+./build_via_docker.sh
+```
+
+Option 2: build on a local ubuntu
+
+Install pico dependencies
+```
+sudo apt install cmake gcc-arm-none-eabi libnewlib-arm-none-eabi xxd python3 g++ bash
+```
+
+Build:
+```
+./build.sh
+```
 
 ### Logs
 
