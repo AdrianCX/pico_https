@@ -18,6 +18,8 @@ public:
     //
     err_t send(u8_t *data, size_t len);
     virtual void on_sent(u16_t len) {}
+
+    err_t flush();
     u16_t send_buffer_size();
 
     //

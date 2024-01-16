@@ -19,6 +19,7 @@ target_link_libraries(hello_world_https
         pico_mbedtls
         pico_stdlib
         pico_tls
+        pico_logger
         )
 pico_add_extra_outputs(hello_world_https)
 

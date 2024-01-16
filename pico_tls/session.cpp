@@ -23,7 +23,7 @@ Session::Session(void *arg)
     : m_pcb((struct altcp_pcb *)arg)
     , m_closing(false)
 {
-    log("Session::Session: this=%p, pcb=%p\n", this, m_pcb);
+    trace("Session::Session: this=%p, pcb=%p\n", this, m_pcb);
     
     altcp_setprio(m_pcb, TCP_PRIO_MIN);
 
@@ -37,7 +37,7 @@ Session::Session(void *arg)
 
 Session::~Session()
 {
-    log("Session::~Session: this:%p, m_pcb=%p, m_closing=%d\n", this, m_pcb, m_closing);
+    trace("Session::~Session: this:%p, m_pcb=%p, m_closing=%d\n", this, m_pcb, m_closing);
 }
 
 u16_t Session::send_buffer_size()
@@ -47,7 +47,7 @@ u16_t Session::send_buffer_size()
 
 err_t Session::send(u8_t *data, size_t len)
 {
-    log("Session::send: this=%p, m_pcb=%p, data=%p, len=%d\n", this, m_pcb, data, len);
+    trace("Session::send: this=%p, m_pcb=%p, data=%p, len=%d\n", this, m_pcb, data, len);
     if (data == NULL)
     {
         return ERR_VAL;
@@ -61,12 +61,24 @@ err_t Session::send(u8_t *data, size_t len)
     return altcp_write(m_pcb, data, len, TCP_WRITE_FLAG_COPY);
 }
 
+err_t Session::flush()
+{
+    trace("Session::flush: this=%p, m_pcb=%p\n", this, m_pcb);
+    if (m_pcb == NULL)
+    {
+        return ERR_CLSD;
+    }
+    
+    return altcp_output(m_pcb);
+}
+
+
 err_t Session::http_sent(void *arg, struct altcp_pcb *pcb, u16_t len)
 {
-    log("Session::http_sent: this=%p, m_pcb=%p, len=%d\n", arg, pcb, len);
+    trace("Session::http_sent: this=%p, m_pcb=%p, len=%d\n", arg, pcb, len);
     if (arg == NULL)
     {
-        log("Session::http_sent: ERROR: Invalid http_sent with NULL arg\n");
+        trace("Session::http_sent: ERROR: Invalid http_sent with NULL arg\n");
         return ERR_VAL;
     }
 
@@ -78,11 +90,11 @@ err_t Session::http_sent(void *arg, struct altcp_pcb *pcb, u16_t len)
 err_t Session::http_recv(void *arg, struct altcp_pcb *pcb, struct pbuf *p, err_t err)
 {
     Session *self = (Session *)arg;
-    log("Session::http_recv: this=%p, pcb=%p, m_pcb=%p, pbuf=%p, data=%p, len=%d, err=%s\n", arg, pcb, (self != NULL ? self->m_pcb : NULL), p, (p != NULL ? p->payload : NULL), (p != NULL ? p->len : 0), lwip_strerr(err));
+    trace("Session::http_recv: this=%p, pcb=%p, m_pcb=%p, pbuf=%p, data=%p, len=%d, err=%s\n", arg, pcb, (self != NULL ? self->m_pcb : NULL), p, (p != NULL ? p->payload : NULL), (p != NULL ? p->len : 0), lwip_strerr(err));
 
     if (self == NULL)
     {
-        log("Session::http_recv: ERROR: Invalid http_recv with NULL arg\n");
+        trace("Session::http_recv: ERROR: Invalid http_recv with NULL arg\n");
 
         // Try and fix up any pcb and memory, something is terribly bad if we reached this.
         if (p != NULL)
@@ -100,7 +112,7 @@ err_t Session::http_recv(void *arg, struct altcp_pcb *pcb, struct pbuf *p, err_t
     // RX side is closed for the connection
     if (p == NULL)
     {
-        log("Session::http_recv: connection is closed\n");
+        trace("Session::http_recv: connection is closed\n");
         self->close();
         return ERR_OK;
     }
@@ -128,12 +140,12 @@ err_t Session::http_recv(void *arg, struct altcp_pcb *pcb, struct pbuf *p, err_t
 
 void Session::http_err(void *arg, err_t err)
 {
-    log("Session::http_err: this=%p, err=%s\n", arg, lwip_strerr(err));
+    trace("Session::http_err: this=%p, err=%s\n", arg, lwip_strerr(err));
     
     Session *self = (Session *)arg;
     if (self == NULL)
     {
-        log("Session::http_err: ERROR: Invalid http_err with NULL arg\n");
+        trace("Session::http_err: ERROR: Invalid http_err with NULL arg\n");
         return;
     }
     
@@ -144,7 +156,7 @@ void Session::http_err(void *arg, err_t err)
 
 void Session::close()
 {
-    log("Session::close: this=%p, m_pcb=%p, m_closing=%d\n", this, (void *)m_pcb, m_closing);
+    trace("Session::close: this=%p, m_pcb=%p, m_closing=%d\n", this, (void *)m_pcb, m_closing);
 
     if (m_closing)
     {
@@ -166,17 +178,17 @@ void Session::close()
         return;
     }
 
-    log("Session::close: this=%p, altcp_close pcb=%p, error=%s, scheduling poll\n", this, (void *)m_pcb, lwip_strerr(err));
+    trace("Session::close: this=%p, altcp_close pcb=%p, error=%s, scheduling poll\n", this, (void *)m_pcb, lwip_strerr(err));
     altcp_poll(m_pcb, http_poll, 4);
 }
 
 err_t Session::http_poll(void *arg, struct altcp_pcb *pcb) {
     Session *self = (Session *)arg;
-    log("Session::http_poll: this=%p, pcb=%p, m_pcb, m_closing: %d\n", self, (void *)pcb, (self != NULL ? self->m_pcb : NULL), (self != NULL ? self->m_closing : 0));
+    trace("Session::http_poll: this=%p, pcb=%p, m_pcb, m_closing: %d\n", self, (void *)pcb, (self != NULL ? self->m_pcb : NULL), (self != NULL ? self->m_closing : 0));
     
     if (self == NULL)
     {
-        log("Session::http_poll: ERROR: Invalid http_poll with NULL arg\n");
+        trace("Session::http_poll: ERROR: Invalid http_poll with NULL arg\n");
 
         // This will just loop around and print error above on next poll/
         return ERR_OK;
@@ -184,7 +196,7 @@ err_t Session::http_poll(void *arg, struct altcp_pcb *pcb) {
 
     if (self->m_pcb != pcb)
     {
-        log("Session::http_poll: ERROR: invalid software assumption, this=%p, this->m_pcb(%p) != pcb argument(%p)\n", self, self->m_pcb, pcb);
+        trace("Session::http_poll: ERROR: invalid software assumption, this=%p, this->m_pcb(%p) != pcb argument(%p)\n", self, self->m_pcb, pcb);
 
         // This will just loop around and print error above on next poll/
         return ERR_OK;
@@ -203,7 +215,7 @@ err_t Session::http_poll(void *arg, struct altcp_pcb *pcb) {
         }
 
         // We'll get called back at regular intervals until close succeeds
-        log("Session::http_poll: this=%p, altcp_close pcb=%p, error=%s, rescheduling poll\n", self, (void *)self->m_pcb, lwip_strerr(err));
+        trace("Session::http_poll: this=%p, altcp_close pcb=%p, error=%s, rescheduling poll\n", self, (void *)self->m_pcb, lwip_strerr(err));
     }
 
     return ERR_OK;    

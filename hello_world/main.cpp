@@ -8,14 +8,13 @@
 #include "http_session.h"
 
 #include "wifi.h"
-
-#define log printf
+#include "pico_logger.h"
 
 int main() {
     stdio_init_all();
 
     if (cyw43_arch_init()) {
-        log("failed to initialise\n");
+        printf("failed to initialise\n");
         return 1;
     }
     cyw43_arch_enable_sta_mode();
@@ -28,15 +27,17 @@ int main() {
 
         return 1;
     }
-
-    log("Starting");
+    
+    start_logging_server();
+    
+    trace("Starting");
     
     TLSListener *client = new TLSListener();
     client->listen(443, HTTPSession::create);
     
     // Constantly print a message so we can see this in minicom over usb
     while (true) {
-        printf("currently active\r\n");
+        trace("currently active\r\n");
         sleep_ms(5000);
     }
 

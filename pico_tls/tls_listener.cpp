@@ -28,20 +28,20 @@ TLSListener::TLSListener()
     , m_bind_pcb(NULL)
     , m_listen_pcb(NULL)
 {
-    log("TLSListener::TLSListener: this=%p\n", this);
+    trace("TLSListener::TLSListener: this=%p\n", this);
 }
 
 TLSListener::~TLSListener()
 {
-    log("TLSListener::~TLSListener: this=%p\n", this);
+    trace("TLSListener::~TLSListener: this=%p\n", this);
 }
 
 int TLSListener::listen(u16_t port, session_factory_t factory)
 {
-    log("TLSListener::TLSListener: this=%p, port: %d, factory: %p\n", this, (int)port, factory);
+    trace("TLSListener::TLSListener: this=%p, port: %d, factory: %p\n", this, (int)port, factory);
     
     if (m_session_factory != NULL) {
-        printf("TLS Listener is already initialized");
+        trace("TLS Listener is already initialized");
         return -1;
     }
     
@@ -65,26 +65,26 @@ int TLSListener::listen(u16_t port, session_factory_t factory)
     err_t err = altcp_bind(m_bind_pcb, IP_ANY_TYPE, port);
 
     if (err != ERR_OK) {
-        log("Bind error: %s\r\n", lwip_strerr(err));
+        trace("Bind error: %s\r\n", lwip_strerr(err));
         return err;
     }
 
     m_listen_pcb = altcp_listen(m_bind_pcb);
     if (m_listen_pcb == NULL) {
-        log("Listen failed\r\n");
+        trace("Listen failed\r\n");
         return -1;
     }
     
     altcp_arg(m_listen_pcb, this);
     altcp_accept(m_listen_pcb, http_accept);
 
-    log("TLSListener::TLSListener: this=%p, port=%d, bind_pcb=%p, listen_pcb=%p\n", this, (int)port, m_bind_pcb, m_listen_pcb);
+    trace("TLSListener::TLSListener: this=%p, port=%d, bind_pcb=%p, listen_pcb=%p\n", this, (int)port, m_bind_pcb, m_listen_pcb);
     return 0;
 }
 
 err_t TLSListener::http_accept(void *arg, struct altcp_pcb *pcb, err_t err)
 {
-    log("TLSListener::http_accept: this=%p, pcb=%d, err=%s\n", arg, pcb, lwip_strerr(err));
+    trace("TLSListener::http_accept: this=%p, pcb=%d, err=%s\n", arg, pcb, lwip_strerr(err));
     if ((err != ERR_OK) || (pcb == NULL)) {
         return ERR_VAL;
     }

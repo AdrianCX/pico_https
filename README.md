@@ -48,14 +48,38 @@ Build:
 
 ### Logs
 
-1. Simple one line to always connect when pico starts up:
+There are two different types of logs.
+
+1. Application logs
+
+These are sent over UDP.
+Configure a host in "config/logging_config.h"
+```
+#define LOGGING_SERVER "192.168.100.150"
+#define LOGGING_SERVER_PORT 21000
+```
+
+and on the remote host:
+```
+netcat -ul 21000
+```
+
+And you should receive logs from all "trace" function calls.
+
+
+
+2. Other logs (lwip/etc):
+
+You can grab those via:
 ```
 while true; do minicom -b 115200 -o -D /dev/ttyACM0; done
 ```
 
-2. To enable logs
 
-2.1. If you want full verbose mbedtls logs with packets, add the following
+
+3. To enable logs
+
+3.1. If you want full verbose mbedtls logs with packets, add the following
 ```
 hello_world/config/mbedtls_config.h
 ```
@@ -63,7 +87,7 @@ hello_world/config/mbedtls_config.h
 #define MBEDTLS_DEBUG_C
 ```
 
-2.2. If you want pico-tls/altcp mbedtls logs
+3.2. If you want pico-tls/altcp mbedtls logs
 ```
 hello_world/config/lwipopts.h
 ```
@@ -73,7 +97,7 @@ hello_world/config/lwipopts.h
 #define PICO_TLS_DEBUG LWIP_DBG_ON
 ```
 
-2.3. If you want TCP stack logs
+3.3. If you want TCP stack logs
 
 Change any of the LWIP_DBG_OFF to LWIP_DBG_ON that you are interested in file below.
 Use a build that doesn't have NDEBUG defined.
