@@ -28,7 +28,6 @@ add_compile_options(-O2 -march=armv6-m -mcpu=cortex-m0plus
   -Werror
   )
 
-add_subdirectory(pico_mbedtls)
 add_subdirectory(pico_tls)
 add_subdirectory(pico_logger)
 add_subdirectory(hello_world)

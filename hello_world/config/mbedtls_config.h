@@ -66,8 +66,8 @@
 #define MBEDTLS_PEM_PARSE_C
 #define MBEDTLS_BASE64_C
 
+/* server items */
 #define MBEDTLS_SSL_ALPN
-
 #define MBEDTLS_SSL_SESSION_TICKETS
 #define MBEDTLS_SSL_TICKET_C
 #define MBEDTLS_SSL_CACHE_C
