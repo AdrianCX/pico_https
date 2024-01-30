@@ -10,8 +10,14 @@ A simple 'hello world' is provided as example.
 1. Create certificates or insert your own.
 ```
 cd pico_tls/certificate
-./create_cert.sh
 ```
+
+Either RSA or EC
+```
+./create_cert_rsa.sh
+./create_cert_ec.sh
+```
+
 This generates a self signed certificate in key.h/cert.h.
 Alternative is to create a 'certificate' folder with same file format anywhere else in include path.
 
@@ -61,7 +67,7 @@ Configure a host in "config/logging_config.h"
 
 and on the remote host:
 ```
-netcat -ul 21000
+netcat -ukl 21000
 ```
 
 And you should receive logs from all "trace" function calls.

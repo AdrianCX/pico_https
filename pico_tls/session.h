@@ -16,7 +16,7 @@ public:
     //          - ERR_CLSD if trying to send data on already closed connection.
     //          - ERR_VAL if data is NULL
     //
-    err_t send(u8_t *data, size_t len);
+    err_t send(const u8_t *data, size_t len);
     virtual void on_sent(u16_t len) {}
 
     err_t flush();

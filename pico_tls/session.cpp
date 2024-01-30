@@ -45,7 +45,7 @@ u16_t Session::send_buffer_size()
     return (m_pcb != NULL) ? altcp_sndbuf(m_pcb) : 0;
 }
 
-err_t Session::send(u8_t *data, size_t len)
+err_t Session::send(const u8_t *data, size_t len)
 {
     trace("Session::send: this=%p, m_pcb=%p, data=%p, len=%d\n", this, m_pcb, data, len);
     if (data == NULL)
@@ -121,6 +121,7 @@ err_t Session::http_recv(void *arg, struct altcp_pcb *pcb, struct pbuf *p, err_t
     {
         // Weirdly enough, errors on recv don't close the pcb. (we don't even get that use case for mbedtls)
         // So signal the error upstream and close the connection anyway.
+        trace("Session::http_recv: err[%d] [%s]\n", err, lwip_strerr(err));
         self->on_error(err, lwip_strerr(err));
         self->close();
         return ERR_OK;

@@ -34,10 +34,10 @@ int main() {
     
     TLSListener *client = new TLSListener();
     client->listen(443, HTTPSession::create);
-    
+
     // Constantly print a message so we can see this in minicom over usb
     while (true) {
-        trace("currently active\r\n");
+        trace("currently active: %s\r\n", ip4addr_ntoa(netif_ip4_addr(netif_list)));
         sleep_ms(5000);
     }
 

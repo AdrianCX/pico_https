@@ -20,7 +20,7 @@ protected:
     virtual ~HTTPSession() {}
     
 private:
-    int m_bytes_pending;
+    int m_bytes_pending = 0;
 };
 
 #endif

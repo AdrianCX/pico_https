@@ -19,7 +19,7 @@ set(CMAKE_CXX_STANDARD 17)
 # Initialize the SDK
 pico_sdk_init()
 
-add_compile_options(-O2 -march=armv6-m -mcpu=cortex-m0plus
+add_compile_options(-O2 -march=armv6-m -mcpu=cortex-m0plus -mthumb
   -Wall
   -Wno-unused-result
   -Wno-format

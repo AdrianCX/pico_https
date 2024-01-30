@@ -38,7 +38,7 @@ TLSListener::~TLSListener()
 
 int TLSListener::listen(u16_t port, session_factory_t factory)
 {
-    trace("TLSListener::TLSListener: this=%p, port: %d, factory: %p\n", this, (int)port, factory);
+    trace("TLSListener::listen: this=%p, port: %d, factory: %p\n", this, (int)port, factory);
     
     if (m_session_factory != NULL) {
         trace("TLS Listener is already initialized");

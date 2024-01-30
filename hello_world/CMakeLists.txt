@@ -1,14 +1,29 @@
+SET(RESOURCE_COMPILER xxd)
+
+set(COMPILED_RESOURCES "${CMAKE_CURRENT_SOURCE_DIR}/rc/index.html")
+
+FOREACH(INPUT_FILE ${COMPILED_RESOURCES})
+    SET(OUTPUT_FILE ${INPUT_FILE}.hex.h)
+    ADD_CUSTOM_COMMAND(
+        OUTPUT ${OUTPUT_FILE}
+        COMMAND ${RESOURCE_COMPILER} -i ${INPUT_FILE} ${OUTPUT_FILE}
+        COMMENT "Compiling ${INPUT_FILE} to binary"
+        DEPENDS ${INPUT_FILE})
+    LIST(APPEND COMPILED_RESOURCES ${OUTPUT_FILE})
+ENDFOREACH()
+
 add_executable(hello_world_https
   main.cpp
   http_session.cpp
+  ${COMPILED_RESOURCES}
   )
 
 # Stack size is excessively large as this is a simple demo, should be reduced
 target_compile_definitions(hello_world_https PRIVATE
   PICO_STDIO_DEFAULT_CRLF=1
   PICO_STDIO_ENABLE_CRLF_SUPPORT=1
-  PICO_STACK_SIZE=0x4000 # 16K
-  PICO_STDIO_STACK_BUFFER_SIZE=1024
+  PICO_STACK_SIZE=0x8000 # 32K
+  PICO_STDIO_STACK_BUFFER_SIZE=0x8000 # 32K
   )
 
 target_include_directories(hello_world_https PRIVATE ${CMAKE_CURRENT_LIST_DIR})

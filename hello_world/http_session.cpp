@@ -9,6 +9,7 @@
 #include "wifi.h"
 
 #include "pico_logger.h"
+#include "rc/index.html.hex.h"
 
 Session *HTTPSession::create(void *arg) {
     return new HTTPSession(arg);
@@ -24,20 +25,19 @@ HTTPSession::HTTPSession(void *arg)
 void HTTPSession::on_recv(u8_t *data, size_t len) {
     trace("HTTPSession::on_recv: this=%p, data=%p, len=%d\n", this, data, len);
 
-    char buffer[128] = {0};
-    char body[128] = {0};
-    snprintf(body, 128, "<html><body>hello world, uptime: %lld</html></body>", get_absolute_time());
-    snprintf(buffer, 128, "HTTP/1.0 200 OK\r\nContent-Length: %d\r\n\r\n", strlen(body)); 
+    char buffer[128];
+    
+    snprintf(buffer, 128, "HTTP/1.0 200 OK\r\nContent-Length: %d\r\n\r\n", _source_hello_world_rc_index_html_len); 
 
-    m_bytes_pending = strlen(buffer) + strlen(body);
-    trace("HTTPSession::send: this=%p, buffer:\n%s%s\n", this, buffer, body);
+    m_bytes_pending = strlen(buffer) + _source_hello_world_rc_index_html_len;
+    trace("HTTPSession::send: this=%p, buffer:\n%s\n", this, buffer);
 
     err_t err = send((u8_t*)buffer, strlen(buffer));
     if (err != ERR_OK) {
         printf("Failed writing data, error: %d", err);
     }
 
-    err = send((u8_t*)body, strlen(body));
+    err = send((u8_t*)_source_hello_world_rc_index_html, _source_hello_world_rc_index_html_len);
     if (err != ERR_OK) {
         printf("Failed writing data, error: %d", err);
     }
