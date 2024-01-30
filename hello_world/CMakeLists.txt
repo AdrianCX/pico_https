@@ -23,7 +23,7 @@ target_compile_definitions(hello_world_https PRIVATE
   PICO_STDIO_DEFAULT_CRLF=1
   PICO_STDIO_ENABLE_CRLF_SUPPORT=1
   PICO_STACK_SIZE=0x8000 # 32K
-  PICO_STDIO_STACK_BUFFER_SIZE=0x8000 # 32K
+  PICO_STDIO_STACK_BUFFER_SIZE=512
   )
 
 target_include_directories(hello_world_https PRIVATE ${CMAKE_CURRENT_LIST_DIR})
