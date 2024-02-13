@@ -22,6 +22,11 @@ int log_count = 0;
 extern "C" {
 #endif
 
+const char *safestr(const char *value)
+{
+    return value != NULL ? value : "null";
+}
+
 bool start_logging_server()
 {
     const ip_addr_t any_addr = {0};
@@ -72,7 +77,6 @@ void trace(const char *format, ...)
     }
     pbuf_free(p);
 }
-
 void m0FaultHandle(struct M0excFrame *exc, struct M0highRegs *hiRegs, enum M0faultReason reason, uint32_t addr){
 	static const char *names[] = {
 		[M0faultMemAccessFailR] = "Memory read failed",
@@ -109,7 +113,7 @@ void m0FaultHandle(struct M0excFrame *exc, struct M0highRegs *hiRegs, enum M0fau
     
     for (int i=0;i<10;++i)
     {
-        trace("crashed at: 0x%08lx\n", __builtin_extract_return_addr(__builtin_return_address(0)));
+        trace("crashed at: 0x%08lx\n", exc->pc);
         sleep_ms(1000);
     }
 

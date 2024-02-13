@@ -8,6 +8,7 @@ extern "C" {
 
 bool start_logging_server();
 void trace(const char *parameters, ...);
+const char *safestr(const char *value);
     
 #ifdef __cplusplus
 }

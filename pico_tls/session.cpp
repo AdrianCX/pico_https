@@ -113,8 +113,7 @@ err_t Session::http_recv(void *arg, struct altcp_pcb *pcb, struct pbuf *p, err_t
     if (p == NULL)
     {
         trace("Session::http_recv: connection is closed\n");
-        self->close();
-        return ERR_OK;
+        return self->close();
     }
     
     if (err != ERR_OK)
@@ -123,17 +122,19 @@ err_t Session::http_recv(void *arg, struct altcp_pcb *pcb, struct pbuf *p, err_t
         // So signal the error upstream and close the connection anyway.
         trace("Session::http_recv: err[%d] [%s]\n", err, lwip_strerr(err));
         self->on_error(err, lwip_strerr(err));
-        self->close();
-        return ERR_OK;
+        return self->close();
     }
 
     // Confirm we've processed the data
     altcp_recved(pcb, p->tot_len);
 
-    self->on_recv((u8_t *)p->payload, p->len);
-    
+    if (!self->on_recv((u8_t *)p->payload, p->len))
+    {
+        pbuf_free(p);
+        return self->close();
+    }
+
     pbuf_free(p);
-    
     return ERR_OK;
 }
 
@@ -155,20 +156,20 @@ void Session::http_err(void *arg, err_t err)
     self->on_closed();
 }
 
-void Session::close()
+err_t Session::close()
 {
     trace("Session::close: this=%p, m_pcb=%p, m_closing=%d\n", this, (void *)m_pcb, m_closing);
-
+    
     if (m_closing)
     {
-        return;
+        return ERR_OK;
     }
     m_closing = true;
 
     if (m_pcb == NULL)
     {
         on_closed();
-        return;
+        return ERR_OK;
     }
 
     err_t err = altcp_close(m_pcb);
@@ -176,11 +177,12 @@ void Session::close()
     {
         m_pcb = NULL;
         on_closed();
-        return;
+        return ERR_CLSD;
     }
 
     trace("Session::close: this=%p, altcp_close pcb=%p, error=%s, scheduling poll\n", this, (void *)m_pcb, lwip_strerr(err));
     altcp_poll(m_pcb, http_poll, 4);
+    return ERR_OK;
 }
 
 err_t Session::http_poll(void *arg, struct altcp_pcb *pcb) {

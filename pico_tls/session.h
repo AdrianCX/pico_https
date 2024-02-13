@@ -25,12 +25,12 @@ public:
     //
     // Called when data is received.
     //
-    virtual void on_recv(u8_t *data, size_t len) {}
+    virtual bool on_recv(u8_t *data, size_t len) { return true; }
 
     //
     // Call when you want to close the connection, wait until on_closed is called to confirm/free memory.
     //
-    void close();
+    err_t close();
     virtual void on_closed() {}
 
     //

@@ -5,7 +5,7 @@
 #include "pico/cyw43_arch.h"
 
 #include "tls_listener.h"
-#include "http_session.h"
+#include "request_handler.h"
 
 #include "wifi.h"
 #include "pico_logger.h"
@@ -20,8 +20,9 @@ int main() {
     cyw43_arch_enable_sta_mode();
 
     if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 30000)) {
+        int i=0;
         while (true) {
-            printf("failed to connect to wifi, ssid: %s, password: %s\n", WIFI_SSID, WIFI_PASSWORD);
+            printf("[%d] failed to connect to wifi, ssid: %s, password: %s\n", i++, WIFI_SSID, WIFI_PASSWORD);
             sleep_ms(3000);
         }
 
@@ -33,7 +34,7 @@ int main() {
     trace("Starting");
     
     TLSListener *client = new TLSListener();
-    client->listen(443, HTTPSession::create);
+    client->listen(443, RequestHandler::create);
 
     // Constantly print a message so we can see this in minicom over usb
     while (true) {

@@ -19,7 +19,7 @@ set(CMAKE_CXX_STANDARD 17)
 # Initialize the SDK
 pico_sdk_init()
 
-add_compile_options(-O2 -march=armv6-m -mcpu=cortex-m0plus -mthumb
+add_compile_options(-O2 -g3 -march=armv6-m -mcpu=cortex-m0plus -mthumb
   -Wall
   -Wno-unused-result
   -Wno-format
@@ -30,5 +30,5 @@ add_compile_options(-O2 -march=armv6-m -mcpu=cortex-m0plus -mthumb
 
 add_subdirectory(pico_tls)
 add_subdirectory(pico_logger)
+add_subdirectory(pico_http)
 add_subdirectory(hello_world)
-

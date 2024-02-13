@@ -70,8 +70,28 @@ and on the remote host:
 netcat -ukl 21000
 ```
 
-And you should receive logs from all "trace" function calls.
+If it crashes you will see something like this
+```
+ 11    10619 Undef 16-bit instr sr = 0x6100002e
+ 12    10619 R0  = 0x00000001  R8  = 0x20005b7c
+ 13    10619 R1  = 0x00000001  R9  = 0x2000dfe8
+ 14    10619 R2  = 0x2000f670  R10 = 0x000001a6
+ 15    10619 R3  = 0x00000000  R11 = 0x2000fe68
+ 16    10619 R4  = 0x2000dfd8  R12 = 0x2000fe5c
+ 17    10619 R5  = 0x00000000  SP  = 0x20041da0
+ 18    10620 R6  = 0x20019398  LR  = 0x2000fe68
+ 19    10620 R7  = 0x20005b7c  PC  = 0x1000064c
+ 20    10620  -> undef instr16: 0xdeff
+ 21    10620 crashed at: 0x1000064c
+```
 
+using gdb and addresses you can see line where issue occurs:
+```
+# gdb ./build_docker/hello_world/hello_world.elf
+
+(gdb) info line *0x1000064c
+Line 302 of "/source/hello_world/http_session.cpp" starts at address 0x10000648 <_ZN11HTTPSession7on_recvEPhj+20> and ends at 0x10000654 <_ZN11HTTPSessionD2Ev>.
+```
 
 
 2. Other logs (lwip/etc):

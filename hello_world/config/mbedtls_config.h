@@ -72,5 +72,8 @@
 #define MBEDTLS_SSL_TICKET_C
 #define MBEDTLS_SSL_CACHE_C
 
+// In case someone wants to use frame-pointers
+#define MULADDC_CANNOT_USE_R7
+
 //enable if you want mbedtls verbose prints
 //#define MBEDTLS_DEBUG_C

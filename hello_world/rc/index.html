@@ -1,6 +1,19 @@
 <!DOCTYPE html>
 <html>
 <body>
-Hello from RP2040 over HTTPS
+  <script>
+    class WebSocketHandler {
+        periodic(event) {
+            this.ws.send("hello from websocket");
+        }
+        constructor() {
+            this.ws = new WebSocket("wss://" + location.hostname + ":443/websocket");
+            this.timer = setInterval(() => this.periodic(), 1000);
+        }
+    }
+    let handler = new WebSocketHandler();
+  </script>
+
+  Hello from RP2040 with WebSocket Handshake
 </body>
 </html>

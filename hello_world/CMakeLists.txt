@@ -14,7 +14,7 @@ ENDFOREACH()
 
 add_executable(hello_world_https
   main.cpp
-  http_session.cpp
+  request_handler.cpp
   ${COMPILED_RESOURCES}
   )
 
@@ -33,6 +33,7 @@ target_link_libraries(hello_world_https
         pico_lwip_mbedtls
         pico_mbedtls
         pico_stdlib
+        pico_http
         pico_tls
         pico_logger
         )
