@@ -1,9 +1,8 @@
-# Simple HTTPS/TLS server on raspberry pi pico.
+# Simple Websocket/HTTPS/TLS server on raspberry pi pico.
 
 
 Goal here is to have a simple build environment and libraries to create your own TLS server.
-A simple 'hello world' is provided as example.
-
+A simple 'hello world' is provided as example that can handle simple HTTPS requests and WebSocket clients.
 
 ### How to compile:
 

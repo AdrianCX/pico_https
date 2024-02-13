@@ -9,17 +9,20 @@
 
 #include "session.h"
 #include "http_header.h"
+#include "websocket_handler.h"
 
 enum HTTPSessionState
 {
     INIT,
     HEADER_RECEIVED,
-    WEBSOCKET_WAIT_PACKET,
-    WEBSOCKET_WAIT_DATA,
+    WEBSOCKET_ESTABLISHED,
     FAIL,
 };
 
-class HTTPSession : public Session {
+class HTTPSession
+    : public Session
+    , public WebSocketInterface
+{
 public:
     static Session *create(void *arg);
 
@@ -28,9 +31,9 @@ public:
     virtual bool onWebSocketData(u8_t *data, size_t len) { return false; }
     
     bool acceptWebSocket(HTTPHeader& header);
-    bool sendWebSocketData(const char *body, int body_len);
     
     bool sendHttpReply(const char *body, int body_len);
+    bool sendWebSocketData(const char *body, int body_len);
 
     virtual bool on_recv(u8_t *data, size_t len) override;
     virtual void on_sent(u16_t len) override;
@@ -41,10 +44,9 @@ protected:
     virtual ~HTTPSession() {}
     
 private:
-    bool decodeWebSocketData(u8_t *data, size_t len);
-
     HTTPSessionState m_state;
     HTTPHeader m_header;
+    WebSocketReceiver m_websocketReceiver;
 };
 
 #endif

@@ -57,10 +57,9 @@ bool HTTPSession::on_recv(u8_t *data, size_t len) {
         {
             return onHttpData(data,len);            
         }
-        case WEBSOCKET_WAIT_PACKET:
-        case WEBSOCKET_WAIT_DATA:
+        case WEBSOCKET_ESTABLISHED:
         {
-            return decodeWebSocketData(data, len);
+            return m_websocketReceiver.decodeData(data, len, this);
         }
         case FAIL:
         {
@@ -69,20 +68,6 @@ bool HTTPSession::on_recv(u8_t *data, size_t len) {
     }
     
     return false;
-}
-
-bool HTTPSession::decodeWebSocketData(u8_t *data, size_t len)
-{
-    // TODO
-    trace("HTTPSession::decodeWebSocketData: this=%p, NOT Implemented:\n", this);
-    return true;
-}
-
-bool HTTPSession::sendWebSocketData(const char *body, int body_len)
-{
-    // TODO
-    trace("HTTPSession::sendWebSocketData: this=%p, NOT Implemented:\n", this);
-    return true;
 }
 
 bool HTTPSession::sendHttpReply(const char *body, int body_len)
@@ -176,7 +161,7 @@ bool HTTPSession::acceptWebSocket(HTTPHeader& header)
     }
 
     flush();
-    m_state = WEBSOCKET_WAIT_PACKET;
+    m_state = WEBSOCKET_ESTABLISHED;
     trace("HTTPSession::acceptWebSocket: this=%p, websocket accepted, reply:\n%s\n", this, reply);
     return true;    
 }   
