@@ -5,9 +5,6 @@
 #include "pico/cyw43_arch.h"
 
 #include "request_handler.h"
-#include "wifi.h"
-
-#include "mbedtls_wrapper.h"
 #include "pico_logger.h"
 
 #include "rc/index.html.hex.h"

@@ -18,14 +18,20 @@ int main() {
         return 1;
     }
     cyw43_arch_enable_sta_mode();
+    cyw43_arch_disable_ap_mode();
 
-    if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 30000)) {
-        int i=0;
-        while (true) {
-            printf("[%d] failed to connect to wifi, ssid: %s, password: %s\n", i++, WIFI_SSID, WIFI_PASSWORD);
-            sleep_ms(3000);
+    int err_code = cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 30000);
+
+    if (err_code != 0)
+    {
+        for (int i=0;i<5;++i)
+        {
+            printf("[%d] failed to connect to wifi, ssid[%s], password[%s] err[%d], restarting in %d seconds\n", i, WIFI_SSID, WIFI_PASSWORD, err_code, 5-i);
+            sleep_ms(1000);
         }
 
+        #define AIRCR_Register (*((volatile uint32_t*)(PPB_BASE + 0x0ED0C)))
+        AIRCR_Register = 0x5FA0004;
         return 1;
     }
     
