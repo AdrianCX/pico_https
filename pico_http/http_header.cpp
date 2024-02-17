@@ -118,7 +118,7 @@ bool HTTPHeader::parse(char *data, int len)
         }
     }
 
-    for (;i+3<=len;++i)
+    for (;i+4<=len;++i)
     {
         if (data[i]=='\r' && data[i+1] == '\n' && data[i+2] == '\r' && data[i+3] == '\n')
         {
