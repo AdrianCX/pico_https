@@ -12,6 +12,7 @@ FOREACH(INPUT_FILE ${COMPILED_RESOURCES})
     LIST(APPEND COMPILED_RESOURCES ${OUTPUT_FILE})
 ENDFOREACH()
 
+
 add_executable(hello_world_https
   main.cpp
   request_handler.cpp
@@ -36,6 +37,7 @@ target_link_libraries(hello_world_https
         pico_http
         pico_tls
         pico_logger
+        pico_eth
         )
 pico_add_extra_outputs(hello_world_https)
 
@@ -43,3 +45,4 @@ pico_enable_stdio_usb(hello_world_https 1)
 pico_enable_stdio_uart(hello_world_https 0)
 
 target_include_directories(hello_world_https PUBLIC config)
+target_include_directories(hello_world_https PUBLIC ../)

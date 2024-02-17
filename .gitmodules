@@ -5,3 +5,6 @@
 	path = mbedtls
 	url = https://github.com/Mbed-TLS/mbedtls
     branch = mbedtls-2.28
+[submodule "pico_eth"]
+	path = pico_eth
+	url = https://github.com/holysnippet/pico_eth

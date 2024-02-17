@@ -26,9 +26,11 @@ add_compile_options(-O2 -g3 -march=armv6-m -mcpu=cortex-m0plus -mthumb
   -Wno-unused-function
   -Wno-maybe-uninitialized
   -Werror
+  -Wno-error=parentheses
   )
-
+  
 add_subdirectory(pico_tls)
 add_subdirectory(pico_logger)
 add_subdirectory(pico_http)
 add_subdirectory(hello_world)
+add_subdirectory(pico_eth)
