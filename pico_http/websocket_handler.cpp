@@ -25,7 +25,9 @@ SOFTWARE.
 #include <time.h>
 
 #include "websocket_handler.h"
-#include "pico_logger.h"
+
+extern "C" void trace(const char *parameters, ...);
+extern "C" const char *safestr(const char *value);
 
 bool WebSocketReceiver::decodeData(uint8_t* data, size_t len, WebSocketInterface *callback)
 {
@@ -110,7 +112,7 @@ bool WebSocketReceiver::decodeData(uint8_t* data, size_t len, WebSocketInterface
                     }
                 }
 
-                if (!callback->onWebSocketData(data, len))
+                if (!callback->onWebSocketData(data, i))
                 {
                     return false;
                 }

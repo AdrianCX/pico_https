@@ -27,6 +27,7 @@ SOFTWARE.
 #include "pico/stdlib.h"
 #else
 #include "stdlib.h"
+#include <cstdint>
 #endif
 
 #define MAX_WEBSOCKET_HEADER 16
