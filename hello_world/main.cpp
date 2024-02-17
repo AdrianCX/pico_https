@@ -29,7 +29,7 @@ SOFTWARE.
 #include "tls_listener.h"
 #include "request_handler.h"
 
-#include "wifi.h"
+//#include "wifi.h"
 #include "pico_logger.h"
 
 
