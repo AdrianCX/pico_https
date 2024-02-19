@@ -64,10 +64,16 @@ int main() {
     TLSListener *client = new TLSListener();
     client->listen(443, RequestHandler::create);
 
-    // Constantly print a message so we can see this in minicom over usb
+    uint32_t start = to_us_since_boot(get_absolute_time())/1000;
     while (true) {
-        trace("currently active: %s\r\n", ip4addr_ntoa(netif_ip4_addr(netif_list)));
-        sleep_ms(5000);
+        cyw43_arch_poll();
+
+        uint32_t now = to_us_since_boot(get_absolute_time())/1000;
+        if (now - start > 5000)
+        {
+            start = now;
+            trace("currently active: %s\r\n", ip4addr_ntoa(netif_ip4_addr(netif_list)));
+        }
     }
 
     cyw43_arch_deinit();

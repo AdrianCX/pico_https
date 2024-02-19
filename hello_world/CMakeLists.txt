@@ -29,7 +29,7 @@ target_compile_definitions(hello_world_https PRIVATE
 target_include_directories(hello_world_https PRIVATE ${CMAKE_CURRENT_LIST_DIR})
       
 target_link_libraries(hello_world_https
-        pico_cyw43_arch_lwip_threadsafe_background
+        pico_cyw43_arch_lwip_poll
         pico_lwip_mbedtls
         pico_mbedtls
         pico_stdlib

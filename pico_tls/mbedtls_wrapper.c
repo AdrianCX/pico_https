@@ -49,11 +49,9 @@ int base64_encode(const unsigned char *src, size_t slen, unsigned char *dst, siz
     return 0;
 }
 
-#if defined(MBEDTLS_DEBUG_C)
 void mbedtls_debug_print(void *cookie, int level, const char *file, int line, const char *message) {
     trace("%s:%d %s\r\n", file, line, message);
 }
-#endif
 
 #ifdef __cplusplus
 }
