@@ -29,7 +29,7 @@ SOFTWARE.
 extern "C" void trace(const char *parameters, ...);
 extern "C" const char *safestr(const char *value);
 
-bool WebSocketReceiver::decodeData(uint8_t* data, size_t len, WebSocketInterface *callback)
+bool WebSocketHandler::decodeData(uint8_t* data, size_t len, WebSocketInterface *callback)
 {
     while (len > 0)
     {
@@ -52,7 +52,7 @@ bool WebSocketReceiver::decodeData(uint8_t* data, size_t len, WebSocketInterface
             uint16_t websocketHeaderSize = 2 + (payload_len == 126 ? 2 : 0) + (payload_len == 127 ? 8 : 0) + (m_mask ? 4 : 0);
             if (m_bufferIndex < websocketHeaderSize)
             {
-                trace("WebSocketReceiver::decodeData: this=%p, incomplete websocket header[%d] exected[%d]\n", this, m_bufferIndex, websocketHeaderSize);
+                trace("WebSocketHandler::decodeData: this=%p, incomplete websocket header[%d] exected[%d]\n", this, m_bufferIndex, websocketHeaderSize);
                 return true; 
             }
 
@@ -139,3 +139,52 @@ bool WebSocketReceiver::decodeData(uint8_t* data, size_t len, WebSocketInterface
     return true;
 
 }
+
+
+bool WebSocketHandler::encodeData(const uint8_t* data, size_t len, WebSocketInterface *callback)
+{
+    uint8_t buffer[MAX_WEBSOCKET_HEADER] = {0};
+    uint16_t headerSize = 0;
+
+    // FIN + operation
+    buffer[0] = 0x80 | WebSocketOperation::BINARY_FRAME;
+    buffer[1] |= 0x80;
+    
+    if (len < 126)
+    {
+        buffer[1] |= len;
+        headerSize += 2;
+    }
+    else if (len <= 0xffff)
+    {
+        buffer[1] |= 126;
+        buffer[2] = (len >> 8) & 0xff;
+        buffer[3] = len & 0xff;
+        headerSize += 4;
+    }
+    else
+    {
+        buffer[1] |= 127;
+        buffer[2] = 0;
+        buffer[3] = 0;
+        buffer[4] = 0;
+        buffer[5] = 0;
+        buffer[6] = (len >> 24) & 0xff;
+        buffer[7] = (len >> 16) & 0xff;
+        buffer[8] = (len >> 8) & 0xff;
+        buffer[9] = (len) & 0xff;
+        headerSize += 10;
+    }
+
+    // Empty mask for now
+    headerSize+=4;
+    
+    // 4 mask bytes if needed
+    if (!callback->onWebsocketEncodedData(&buffer[0], headerSize))
+    {
+        return false;
+    }
+    
+    return callback->onWebsocketEncodedData(data, len);
+}
+

@@ -81,7 +81,7 @@ bool HTTPSession::on_recv(u8_t *data, size_t len) {
         }
         case WEBSOCKET_ESTABLISHED:
         {
-            return m_websocketReceiver.decodeData(data, len, this);
+            return m_websocketHandler.decodeData(data, len, this);
         }
         case FAIL:
         {
@@ -91,6 +91,29 @@ bool HTTPSession::on_recv(u8_t *data, size_t len) {
     
     return false;
 }
+
+bool HTTPSession::onWebsocketEncodedData(const uint8_t *data, size_t len)
+{
+    err_t err = send((u8_t*)data, len);
+    if (err != ERR_OK) {
+        trace("HTTPSession::onWebsocketEncodedData: this=%p, failed sending websocket data error[%d]\n", this, err);
+        return false;
+    }
+
+    return true;
+}
+
+bool HTTPSession::sendWebSocketData(const uint8_t *body, int body_len)
+{
+    if (!m_websocketHandler.encodeData(body, body_len, this))
+    {
+        return false;
+    }
+
+    flush();
+    return true;
+}
+
 
 bool HTTPSession::sendHttpReply(const char *body, int body_len)
 {

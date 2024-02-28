@@ -52,12 +52,13 @@ class WebSocketInterface
 {
 public:
     virtual bool onWebSocketData(uint8_t *data, size_t len) = 0;
+    virtual bool onWebsocketEncodedData(const uint8_t *data, size_t len) = 0;
 };
 
-class WebSocketReceiver
+class WebSocketHandler
 {
 public:
-    WebSocketReceiver() {};
+    WebSocketHandler() {};
 
     ///
     /// This will decode messages in-place in provided data and trigger callback with them.
@@ -67,6 +68,14 @@ public:
     ///          - false - on failure, connection must be closed.
     ///
     bool decodeData(uint8_t* data, size_t len, WebSocketInterface *callback);
+
+    ///
+    /// This will encode data in a message and call back with bytes to send.
+    ///
+    /// @returns - true - if all data processed succesfully.
+    ///          - false - on failure, connection must be closed.
+    ///
+    bool encodeData(const uint8_t* data, size_t len, WebSocketInterface *callback);
 
 private:
     bool m_fin = false;

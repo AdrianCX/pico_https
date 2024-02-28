@@ -134,7 +134,7 @@ err_t Session::http_recv(void *arg, struct altcp_pcb *pcb, struct pbuf *p, err_t
     // RX side is closed for the connection
     if (p == NULL)
     {
-        trace("Session::http_recv: connection is closed\n");
+        trace("Session::http_recv: connection is closed by remote party.\n");
         return self->close();
     }
     

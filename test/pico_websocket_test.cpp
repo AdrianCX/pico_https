@@ -57,6 +57,7 @@ class MockWebSocketInterface : public WebSocketInterface
 {
 public:
     MOCK_METHOD(bool, onWebSocketData, (uint8_t *data, size_t len), (override));
+    MOCK_METHOD(bool, onWebsocketEncodedData, (const uint8_t *data, size_t len), (override));
 };
 
 TEST(WebSocketHandler, BasicWebSocketDecode) {
@@ -75,8 +76,8 @@ TEST(WebSocketHandler, BasicWebSocketDecode) {
         }));
             
 
-    WebSocketReceiver receiver;
-    receiver.decodeData(buffer, websocket_packet_size, &mockListener);
+    WebSocketHandler handler;
+    handler.decodeData(buffer, websocket_packet_size, &mockListener);
 
     delete[] buffer;
 }
@@ -96,8 +97,8 @@ TEST(WebSocketHandler, PartialDecodes) {
             return true;
         }));
             
-    WebSocketReceiver receiver;
-    EXPECT_EQ(true, receiver.decodeData(buffer, websocket_partial_packet_size, &mockListener));
+    WebSocketHandler handler;
+    EXPECT_EQ(true, handler.decodeData(buffer, websocket_partial_packet_size, &mockListener));
 
     delete[] buffer;
     size_t remaining_len = websocket_packet_size - websocket_partial_packet_size;
@@ -111,7 +112,7 @@ TEST(WebSocketHandler, PartialDecodes) {
             return true;
         }));
 
-    EXPECT_EQ(true, receiver.decodeData(buffer, remaining_len, &mockListener));
+    EXPECT_EQ(true, handler.decodeData(buffer, remaining_len, &mockListener));
     
     delete[] buffer;
 }
@@ -125,11 +126,11 @@ TEST(WebSocketHandler, SingleByteFeeding) {
     
     EXPECT_CALL(mockListener, onWebSocketData(_,_)).Times(0);
 
-    WebSocketReceiver receiver;
+    WebSocketHandler handler;
 
     for (int i=0;i<6;++i)
     {
-        EXPECT_EQ(true, receiver.decodeData(&buffer[i], 1, &mockListener));
+        EXPECT_EQ(true, handler.decodeData(&buffer[i], 1, &mockListener));
     }
 
     int pos=0;
@@ -143,7 +144,7 @@ TEST(WebSocketHandler, SingleByteFeeding) {
 
     for (int i=6;i<websocket_packet_size;++i)
     {
-        EXPECT_EQ(true, receiver.decodeData(&buffer[i], 1, &mockListener)) << "Position: " << i;
+        EXPECT_EQ(true, handler.decodeData(&buffer[i], 1, &mockListener)) << "Position: " << i;
     }
     
     delete[] buffer;
@@ -169,8 +170,8 @@ TEST(WebSocketHandler, MultipleMessages) {
         }));
             
 
-    WebSocketReceiver receiver;
-    receiver.decodeData(buffer, 2*websocket_packet_size, &mockListener);
+    WebSocketHandler handler;
+    handler.decodeData(buffer, 2*websocket_packet_size, &mockListener);
 
     delete[] buffer;
 }
@@ -195,8 +196,8 @@ TEST(WebSocketHandler, LargeMessage) {
         }));
             
 
-    WebSocketReceiver receiver;
-    receiver.decodeData(buffer, 2*websocket_large_packet_size, &mockListener);
+    WebSocketHandler handler;
+    handler.decodeData(buffer, 2*websocket_large_packet_size, &mockListener);
 
     delete[] buffer;
 }

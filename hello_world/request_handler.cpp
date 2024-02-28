@@ -74,5 +74,7 @@ bool RequestHandler::onHttpData(u8_t *data, size_t len)
 bool RequestHandler::onWebSocketData(u8_t *data, size_t len)
 {
     trace("RequestHandler::onWebSocketData: this=%p, data[%.*s]:\n", this, len, data);
+
+    sendWebSocketData(data, len);
     return true;
 }

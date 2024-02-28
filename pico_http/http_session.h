@@ -51,12 +51,14 @@ public:
 
     virtual bool onRequestReceived(HTTPHeader& header) { return false; };
     virtual bool onHttpData(u8_t *data, size_t len) { return false; }
-    virtual bool onWebSocketData(u8_t *data, size_t len) { return false; }
+
+    virtual bool onWebSocketData(u8_t *data, size_t len) override { return false; }
+    virtual bool onWebsocketEncodedData(const uint8_t *data, size_t len) override;
     
     bool acceptWebSocket(HTTPHeader& header);
     
     bool sendHttpReply(const char *body, int body_len);
-    bool sendWebSocketData(const char *body, int body_len);
+    bool sendWebSocketData(const uint8_t *body, int body_len);
 
     virtual bool on_recv(u8_t *data, size_t len) override;
     virtual void on_sent(u16_t len) override;
@@ -69,7 +71,7 @@ protected:
 private:
     HTTPSessionState m_state;
     HTTPHeader m_header;
-    WebSocketReceiver m_websocketReceiver;
+    WebSocketHandler m_websocketHandler;
 };
 
 #endif
