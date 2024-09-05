@@ -27,12 +27,19 @@ SOFTWARE.
 #include "pico/cyw43_arch.h"
 
 #include "tls_listener.h"
+#include "listener.h"
 #include "request_handler.h"
 
 #include "wifi.h"
 #include "pico_logger.h"
 
+#include <malloc.h>
+#include "lwip/stats.h"
+#include "pico/platform.h"
+
 int main() {
+    mallopt(M_TRIM_THRESHOLD, 1024);
+    
     stdio_init_all();
 
     if (cyw43_arch_init()) {
@@ -65,14 +72,25 @@ int main() {
     client->listen(443, RequestHandler::create);
 
     uint32_t start = to_us_since_boot(get_absolute_time())/1000;
+    
     while (true) {
         cyw43_arch_poll();
 
         uint32_t now = to_us_since_boot(get_absolute_time())/1000;
-        if (now - start > 5000)
+        if (now - start > 30000)
         {
             start = now;
-            trace("currently active: %s\r\n", ip4addr_ntoa(netif_ip4_addr(netif_list)));
+
+            struct mallinfo m = mallinfo();
+            
+            trace("meminfo[arena=%d, hblkhd=%d, uordblks=%d, usmblks=%d, fordblks=%d, fsmblks=%d, keepcost=%d], numSessions=%d, lwip[avail=%d, used=%d, max=%d, err=%d, illegal=%d] tcp[xmit=%d, recv=%d, fw=%d, drop=%d, chkerr=%d, lenerr=%d, memerr=%d, rterr=%d, proterr=%d, opterr=%d, err=%d, cachehit=%d] udp[xmit=%d, recv=%d, fw=%d, drop=%d, chkerr=%d, lenerr=%d, memerr=%d, rterr=%d, proterr=%d, opterr=%d, err=%d, cachehit=%d]",
+                  (uint32_t)m.arena, (uint32_t)m.hblkhd, (uint32_t)m.uordblks, (uint32_t)m.usmblks, (uint32_t)m.fordblks, (uint32_t)m.fsmblks, (uint32_t)m.keepcost, Session::getNumSessions(), (uint32_t)lwip_stats.mem.avail, (uint32_t)lwip_stats.mem.used, (uint32_t)lwip_stats.mem.max, (uint32_t)lwip_stats.mem.err, (uint32_t)lwip_stats.mem.illegal,
+                  (uint32_t)lwip_stats.tcp.xmit, (uint32_t)lwip_stats.tcp.recv, (uint32_t)lwip_stats.tcp.fw, (uint32_t)lwip_stats.tcp.drop,
+                  (uint32_t)lwip_stats.tcp.chkerr, (uint32_t)lwip_stats.tcp.lenerr, (uint32_t)lwip_stats.tcp.memerr, (uint32_t)lwip_stats.tcp.rterr,
+                  (uint32_t)lwip_stats.tcp.proterr, (uint32_t)lwip_stats.tcp.opterr, (uint32_t)lwip_stats.tcp.err, (uint32_t)lwip_stats.tcp.cachehit,
+                  (uint32_t)lwip_stats.udp.xmit, (uint32_t)lwip_stats.udp.recv, (uint32_t)lwip_stats.udp.fw, (uint32_t)lwip_stats.udp.drop,
+                  (uint32_t)lwip_stats.udp.chkerr, (uint32_t)lwip_stats.udp.lenerr, (uint32_t)lwip_stats.udp.memerr, (uint32_t)lwip_stats.udp.rterr,
+                  (uint32_t)lwip_stats.udp.proterr, (uint32_t)lwip_stats.udp.opterr, (uint32_t)lwip_stats.udp.err, (uint32_t)lwip_stats.udp.cachehit);
         }
     }
 

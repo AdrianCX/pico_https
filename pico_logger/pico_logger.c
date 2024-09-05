@@ -13,9 +13,13 @@
 
 struct udp_pcb upstream_pcb;
 
-#define BUFFER_SIZE 1000
-char buffer[BUFFER_SIZE];
+#define BUFFER_SIZE 1500
+char buffer[BUFFER_SIZE] = {0};
 
+#define ADDRESS_SIZE 46
+char address[ADDRESS_SIZE] = {0};
+
+// So we can see order and when logs go missing, counter on receiver will skip a few numbers
 int log_count = 0;
 
 #ifdef __cplusplus
@@ -27,7 +31,7 @@ const char *safestr(const char *value)
     return value != NULL ? value : "null";
 }
 
-bool start_logging_server()
+int start_logging_server()
 {
     const ip_addr_t any_addr = {0};
     ip_addr_t remote_addr;
@@ -36,14 +40,14 @@ bool start_logging_server()
     if (0 == ip4addr_aton(LOGGING_SERVER, &remote_addr))
     {
         printf("Failed decoding remote logging server address, address: %s\r\n", LOGGING_SERVER);
-        return false;
+        return 0;
     }
 
     err_t err = udp_bind(&upstream_pcb, &any_addr, 5000);
     if (err != 0)
     {
         printf("Failed binding upstream on local port, error: %d\r\n", err);
-        return false;
+        return 0;
     }
 
     udp_connect(&upstream_pcb, &remote_addr, LOGGING_SERVER_PORT);
@@ -53,20 +57,36 @@ bool start_logging_server()
     exception_set_exclusive_handler(PENDSV_EXCEPTION,HardFault_Handler);
     exception_set_exclusive_handler(NMI_EXCEPTION, HardFault_Handler);
 
-    return true;
+    return 1;
 }
 
-void trace(const char *format, ...)
+static void send_message(const char *category, const char *format, va_list args)
 {
     int time = to_us_since_boot(get_absolute_time())/1000;
-    
-    int c=snprintf(buffer, BUFFER_SIZE, "%3d %8d ", log_count, time);
-    log_count = (log_count+1)%999;
-    
-    va_list args;
-    va_start (args, format);
-    int size = vsnprintf (&buffer[c], BUFFER_SIZE, format, args) + c;
-    va_end (args);
+
+    int size = snprintf(buffer, BUFFER_SIZE, "%3d %8d %s %s ", log_count, time, address, category);
+
+    if (size < BUFFER_SIZE-1)
+    {
+        log_count = (log_count+1)%999;
+        
+        size += vsnprintf(&buffer[size], BUFFER_SIZE-size-1, format, args);
+
+        if (size < BUFFER_SIZE-1)
+        {
+            if (buffer[size-1] != '\n')
+            {
+                buffer[size] = '\n';
+                buffer[++size] = 0;
+            }
+        }
+
+        if (size > BUFFER_SIZE)
+        {
+            buffer[BUFFER_SIZE-1] = 0;
+            size = BUFFER_SIZE;
+        }
+    }
 
     struct pbuf *p = pbuf_alloc( PBUF_TRANSPORT, size, PBUF_RAM);
     memcpy(p->payload, buffer, size);
@@ -77,6 +97,24 @@ void trace(const char *format, ...)
     }
     pbuf_free(p);
 }
+
+void trace(const char *format, ...)
+{
+    va_list args;
+    va_start (args, format);
+    send_message("trace", format, args);
+    va_end (args);
+}
+
+void fail(const char *format, ...)
+{
+    va_list args;
+    va_start (args, format);
+    send_message("fail", format, args);
+    va_end (args);
+}
+    
+
 void m0FaultHandle(struct M0excFrame *exc, struct M0highRegs *hiRegs, enum M0faultReason reason, uint32_t addr){
 	static const char *names[] = {
 		[M0faultMemAccessFailR] = "Memory read failed",

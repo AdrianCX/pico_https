@@ -29,10 +29,10 @@ SOFTWARE.
 #include "request_handler.h"
 #include "pico_logger.h"
 
-#include "rc/index.html.hex.h"
+#include "rc/index.html.gz.hex.h"
 
-const unsigned int HTTP_BODY_LEN = _source_hello_world_rc_index_html_len;
-const u8_t *HTTP_BODY = &_source_hello_world_rc_index_html[0];
+const unsigned int HTTP_BODY_LEN = _source_hello_world_rc_index_html_gz_len;
+const u8_t *HTTP_BODY = &_source_hello_world_rc_index_html_gz[0];
 
 Session *RequestHandler::create(void *arg) {
     return new RequestHandler(arg);
@@ -41,39 +41,39 @@ Session *RequestHandler::create(void *arg) {
 RequestHandler::RequestHandler(void *arg)
     : HTTPSession(arg)
 {
-    trace("RequestHandler::RequestHandler: this=%p, arg=%p\n", this, arg);
+    trace("RequestHandler::RequestHandler: this=%p, arg=%p", this, arg);
 }
 
 bool RequestHandler::onRequestReceived(HTTPHeader& header)
 {
     if (strcmp(header.getCommand(), "GET") != 0)
     {
-        trace("RequestHandler::onRequestReceived: this=%p, unexpected command[%s]:\n", this, header.getCommand());
+        trace("RequestHandler::onRequestReceived: this=%p, unexpected command[%s]:", this, header.getCommand());
         header.print();
         return false;
     }
 
     if (strcmp(header.getPath(), "/websocket") == 0)
     {
-        trace("RequestHandler::onRequestReceived: this=%p, acceptWebSocket.\n", this);
+        trace("RequestHandler::onRequestReceived: this=%p, acceptWebSocket.", this);
         return acceptWebSocket(header);
     }
     else
     {
-        trace("RequestHandler::onRequestReceived: this=%p, sendReply[index.html]:\n", this);
-        return sendHttpReply((const char *)HTTP_BODY, HTTP_BODY_LEN);
+        trace("RequestHandler::onRequestReceived: this=%p, sendReply[index.html]:", this);
+        return sendHttpReply("Content-Encoding: gzip\r\n", (const char *)HTTP_BODY, HTTP_BODY_LEN);
     }
 }
 
 bool RequestHandler::onHttpData(u8_t *data, size_t len)
 {
-    trace("RequestHandler::onHttpData: this=%p, data[%s] len[%d]:\n", this, data, len);
+    trace("RequestHandler::onHttpData: this=%p, data[%s] len[%d]", this, data, len);
     return true;
 }
 
 bool RequestHandler::onWebSocketData(u8_t *data, size_t len)
 {
-    trace("RequestHandler::onWebSocketData: this=%p, data[%.*s]:\n", this, len, data);
+    trace("RequestHandler::onWebSocketData: this=%p, len=%d, data=[%.*s]", this, len, len, data);
 
     sendWebSocketData(data, len);
     return true;

@@ -43,8 +43,6 @@ HTTPSession::HTTPSession(void *arg)
 }
 
 bool HTTPSession::on_recv(u8_t *data, size_t len) {
-    trace("HTTPSession::on_recv: this=%p, m_state=%d, data=%p, len=%d\n", this, m_state, data, len);
-
     switch (m_state)
     {
         case INIT:
@@ -115,12 +113,12 @@ bool HTTPSession::sendWebSocketData(const uint8_t *body, int body_len)
 }
 
 
-bool HTTPSession::sendHttpReply(const char *body, int body_len)
+bool HTTPSession::sendHttpReply(const char *extra_headers, const char *body, int body_len)
 {
     const int BUFFER_SIZE = 128;
     
     char buffer[BUFFER_SIZE];
-    int n = snprintf(buffer, BUFFER_SIZE, "HTTP/1.0 200 OK\r\nContent-Length: %d\r\n\r\n", body_len);
+    int n = snprintf(buffer, BUFFER_SIZE, "HTTP/1.0 200 OK\r\n%sContent-Length: %d\r\n\r\n", extra_headers, body_len);
 
     if (n >= BUFFER_SIZE)
     {
@@ -213,7 +211,6 @@ bool HTTPSession::acceptWebSocket(HTTPHeader& header)
 
 
 void HTTPSession::on_sent(u16_t len) {
-    trace("HTTPSession::on_sent: this=%p, len=%d\n", this, len);
 }
 
 void HTTPSession::on_closed() {

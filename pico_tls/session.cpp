@@ -20,13 +20,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-#include "pico_tls_common.h"
+#include "pico_nologger.h"
 #include "session.h"
 
 #include <string.h>
 #include <time.h>
 
-#include "hardware/structs/rosc.h"
 #include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
 #include "lwip/pbuf.h"
@@ -34,12 +33,7 @@ SOFTWARE.
 #include "lwip/altcp_tls.h"
 #include "lwip/dns.h"
 
-#if defined(MBEDTLS_DEBUG_C)
-#include "mbedtls/debug.h"
-#endif
-
-#include "mbedtls/ssl_ticket.h"
-#include "mbedtls_wrapper.h"
+int Session::NUM_SESSIONS = 0;
 
 Session::Session(void *arg)
     : m_pcb((struct altcp_pcb *)arg)
@@ -55,11 +49,15 @@ Session::Session(void *arg)
     altcp_sent(m_pcb, http_sent);
 
     altcp_nagle_disable(m_pcb);
+
+    ++NUM_SESSIONS;
 }
 
 Session::~Session()
 {
     trace("Session::~Session: this:%p, m_pcb=%p, m_closing=%d\n", this, m_pcb, m_closing);
+
+    --NUM_SESSIONS;
 }
 
 u16_t Session::send_buffer_size()
@@ -77,7 +75,7 @@ err_t Session::send(const u8_t *data, size_t len)
 
     if (m_pcb == NULL)
     {
-        return ERR_CLSD;
+        return ERR_OK;
     }
     
     return altcp_write(m_pcb, data, len, TCP_WRITE_FLAG_COPY);
@@ -88,7 +86,7 @@ err_t Session::flush()
     trace("Session::flush: this=%p, m_pcb=%p\n", this, m_pcb);
     if (m_pcb == NULL)
     {
-        return ERR_CLSD;
+        return ERR_OK;
     }
     
     return altcp_output(m_pcb);
@@ -128,7 +126,7 @@ err_t Session::http_recv(void *arg, struct altcp_pcb *pcb, struct pbuf *p, err_t
 
         // Mark it as closed and return status for that.
         altcp_close(self->m_pcb);
-        return ERR_CLSD;
+        return ERR_OK;
     }
     
     // RX side is closed for the connection
@@ -194,54 +192,20 @@ err_t Session::close()
         return ERR_OK;
     }
 
+    altcp_arg(m_pcb, NULL);
+    altcp_recv(m_pcb, NULL);
+    altcp_err(m_pcb, NULL);
+    altcp_poll(m_pcb, NULL, 0);
+    altcp_sent(m_pcb, NULL);
+
     err_t err = altcp_close(m_pcb);
-    if (err == ERR_OK)
-    {
+    if (err != ERR_OK) {
+        altcp_abort(m_pcb);
         m_pcb = NULL;
-        on_closed();
-        return ERR_CLSD;
+
+        err = ERR_ABRT;
     }
 
-    trace("Session::close: this=%p, altcp_close pcb=%p, error=%s, scheduling poll\n", this, (void *)m_pcb, lwip_strerr(err));
-    altcp_poll(m_pcb, http_poll, 4);
-    return ERR_OK;
-}
-
-err_t Session::http_poll(void *arg, struct altcp_pcb *pcb) {
-    Session *self = (Session *)arg;
-    trace("Session::http_poll: this=%p, pcb=%p, m_pcb, m_closing: %d\n", self, (void *)pcb, (self != NULL ? self->m_pcb : NULL), (self != NULL ? self->m_closing : 0));
-    
-    if (self == NULL)
-    {
-        trace("Session::http_poll: ERROR: Invalid http_poll with NULL arg\n");
-
-        // This will just loop around and print error above on next poll/
-        return ERR_OK;
-    }
-
-    if (self->m_pcb != pcb)
-    {
-        trace("Session::http_poll: ERROR: invalid software assumption, this=%p, this->m_pcb(%p) != pcb argument(%p)\n", self, self->m_pcb, pcb);
-
-        // This will just loop around and print error above on next poll/
-        return ERR_OK;
-    }
-    
-    if (self->m_closing)
-    {
-        err_t err = altcp_close(self->m_pcb);
-        if (err == ERR_OK)
-        {
-            self->m_pcb = NULL;
-            self->on_closed();
-
-            // Close automatically removes poll callback and deletes pcb, so we won't get called back anymore
-            return ERR_OK;
-        }
-
-        // We'll get called back at regular intervals until close succeeds
-        trace("Session::http_poll: this=%p, altcp_close pcb=%p, error=%s, rescheduling poll\n", self, (void *)self->m_pcb, lwip_strerr(err));
-    }
-
-    return ERR_OK;    
+    on_closed();
+    return err;
 }

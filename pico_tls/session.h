@@ -20,8 +20,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-#ifndef MBEDTLS_TLS_SESSION_H
-#define MBEDTLS_TLS_SESSION_H
+#ifndef PICO_SESSION_H
+#define PICO_SESSION_H
 
 #include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
@@ -60,7 +60,8 @@ public:
     //
     virtual void on_error(err_t err, const char *err_str) {}
 
-
+    static int getNumSessions() { return NUM_SESSIONS; }
+    
 protected:
     virtual ~Session();
     
@@ -74,7 +75,7 @@ private:
     struct altcp_pcb *m_pcb;
     bool m_closing;
     
-    static err_t http_poll(void *arg, struct altcp_pcb *pcb);
+    static int NUM_SESSIONS;
 };
 
 #endif

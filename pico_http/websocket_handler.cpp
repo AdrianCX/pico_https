@@ -92,9 +92,6 @@ bool WebSocketHandler::decodeData(uint8_t* data, size_t len, WebSocketInterface 
                 m_maskingKey[3] = 0;
             }
 
-            trace("HTTPSession::decodeWebSocketData: this=%p, headerSize[%d] len[%d] extraBytesCached[%d] m_webSocketDataLen[%d]", this,
-                  websocketHeaderSize, len, (bytesToCopy - (m_bufferIndex - websocketHeaderSize)), m_webSocketDataLen);
-
             m_webSocketDataIndex = 0;
             m_state = WebSocketState::WAIT_DATA;
             m_bufferIndex = 0;

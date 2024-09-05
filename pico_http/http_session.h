@@ -57,7 +57,7 @@ public:
     
     bool acceptWebSocket(HTTPHeader& header);
     
-    bool sendHttpReply(const char *body, int body_len);
+    bool sendHttpReply(const char *extra_headers, const char *body, int body_len);
     bool sendWebSocketData(const uint8_t *body, int body_len);
 
     virtual bool on_recv(u8_t *data, size_t len) override;
