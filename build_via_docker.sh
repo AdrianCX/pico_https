@@ -8,8 +8,4 @@ pushd $(dirname "$0")
     popd
 #fi
 
-if [ ! -d build_docker ]; then
-    mkdir build_docker
-fi
-
 docker run -v "$(pwd)":/source/ -it local_build_pico_https

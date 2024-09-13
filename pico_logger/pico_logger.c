@@ -1,7 +1,6 @@
 #include <stdarg.h>
 
 #include "pico/cyw43_arch.h"
-#include "pico/stdlib.h"
 #include "lwip/ip4_addr.h"
 
 #include "hardware/exception.h"
@@ -57,6 +56,9 @@ int start_logging_server()
     exception_set_exclusive_handler(PENDSV_EXCEPTION,HardFault_Handler);
     exception_set_exclusive_handler(NMI_EXCEPTION, HardFault_Handler);
 
+
+    strncpy(address, ip4addr_ntoa(netif_ip4_addr(netif_list)), ADDRESS_SIZE-1);
+    
     return 1;
 }
 

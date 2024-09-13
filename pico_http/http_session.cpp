@@ -24,7 +24,6 @@ SOFTWARE.
 #include <string.h>
 #include <time.h>
 
-#include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
 
 #include "http_session.h"

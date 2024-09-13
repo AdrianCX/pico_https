@@ -23,7 +23,6 @@ SOFTWARE.
 #ifndef MBEDTLS_TLS_LISTENER_H
 #define MBEDTLS_TLS_LISTENER_H
 
-#include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
 
 #include "session.h"

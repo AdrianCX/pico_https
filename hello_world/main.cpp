@@ -23,7 +23,7 @@ SOFTWARE.
 #include <string.h>
 #include <time.h>
 
-#include "pico/stdlib.h"
+#include "pico/stdio.h"
 #include "pico/cyw43_arch.h"
 
 #include "tls_listener.h"
@@ -37,15 +37,18 @@ SOFTWARE.
 #include "lwip/stats.h"
 #include "pico/platform.h"
 
+#include "lwip/timeouts.h"
 int main() {
     mallopt(M_TRIM_THRESHOLD, 1024);
     
     stdio_init_all();
 
-    if (cyw43_arch_init()) {
+    if (cyw43_arch_init_with_country(CYW43_COUNTRY_NETHERLANDS)) {
         printf("failed to initialise\n");
         return 1;
     }
+    cyw43_pm_value(CYW43_PM2_POWERSAVE_MODE, 20, 1, 1, 1);
+    
     cyw43_arch_enable_sta_mode();
     cyw43_arch_disable_ap_mode();
 
@@ -75,6 +78,7 @@ int main() {
     
     while (true) {
         cyw43_arch_poll();
+        sys_check_timeouts();
 
         uint32_t now = to_us_since_boot(get_absolute_time())/1000;
         if (now - start > 30000)

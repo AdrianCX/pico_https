@@ -23,7 +23,6 @@ SOFTWARE.
 #ifndef PICO_SESSION_H
 #define PICO_SESSION_H
 
-#include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
 
 // Can be either TLS or regular TCP, abstracted away by altcp.

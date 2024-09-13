@@ -24,7 +24,6 @@ SOFTWARE.
 #include "tls_listener.h"
 #include "mbedtls_wrapper.h"
 
-#include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
 
 #include "lwip/pbuf.h"

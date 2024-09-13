@@ -23,7 +23,6 @@ SOFTWARE.
 #ifndef PICO_NONE_TLS_LISTENER_H
 #define PICO_NONE_TLS_LISTENER_H
 
-#include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
 
 #include "session.h"

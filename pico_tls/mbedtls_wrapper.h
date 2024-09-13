@@ -1,7 +1,6 @@
 #ifndef MBEDTLS_WRAPPER_H
 #define MBEDTLS_WRAPPER_H
 
-#include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
 
 #ifdef __cplusplus
