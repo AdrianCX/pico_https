@@ -10,7 +10,12 @@
 #include "pico_logger.h"
 #include "m0FaultDispatch/m0FaultDispatch.h"
 
+#ifndef LOGGING_SERVER_BINARY_PORT
+#define LOGGING_SERVER_BINARY_PORT LOGGING_SERVER_PORT
+#endif
+
 struct udp_pcb upstream_pcb;
+struct udp_pcb binary_upstream_pcb;
 
 #define BUFFER_SIZE 1500
 char buffer[BUFFER_SIZE] = {0};
@@ -51,6 +56,15 @@ int start_logging_server()
 
     udp_connect(&upstream_pcb, &remote_addr, LOGGING_SERVER_PORT);
 
+    err = udp_bind(&binary_upstream_pcb, &any_addr, 5001);
+    if (err != 0)
+    {
+        printf("Failed binding upstream on local port, error: %d\r\n", err);
+        return 0;
+    }
+
+    udp_connect(&binary_upstream_pcb, &remote_addr, LOGGING_SERVER_BINARY_PORT);
+    
     exception_set_exclusive_handler(HARDFAULT_EXCEPTION,HardFault_Handler);
     exception_set_exclusive_handler(SVCALL_EXCEPTION,HardFault_Handler);
     exception_set_exclusive_handler(PENDSV_EXCEPTION,HardFault_Handler);
@@ -107,6 +121,19 @@ void trace(const char *format, ...)
     send_message("trace", format, args);
     va_end (args);
 }
+
+void trace_bytes(uint8_t *buffer, uint32_t size)
+{
+    struct pbuf *p = pbuf_alloc( PBUF_TRANSPORT, size, PBUF_RAM);
+    memcpy(p->payload, buffer, size);
+    
+    err_t err = udp_send(&binary_upstream_pcb, p);
+    if (err != ERR_OK) {
+        printf("Failed to send UDP packet! error=%d", err);
+    }
+    pbuf_free(p);
+}
+
 
 void fail(const char *format, ...)
 {
