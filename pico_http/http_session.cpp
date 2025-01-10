@@ -107,7 +107,13 @@ bool HTTPSession::sendWebSocketData(const uint8_t *body, int body_len)
         return false;
     }
 
-    flush();
+    err_t err = flush();
+    
+    if (err != ERR_OK) {
+        trace("HTTPSession::sendWebSocketData: this=%p, failed flushing websocket data error[%d]\n", this, err);
+        return false;
+    }
+
     return true;
 }
 
