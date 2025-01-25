@@ -46,7 +46,8 @@ protected:
 
     bool m_frameTransferActive = false;
     bool m_initialized = false;
-
+    bool m_created = false;
+    
     int8_t m_resolution = 0;
     int8_t m_quality = 0;
     int8_t m_contrast = 0;

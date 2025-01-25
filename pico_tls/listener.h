@@ -27,8 +27,6 @@ SOFTWARE.
 
 #include "session.h"
 
-struct altcp_tls_config;
-
 typedef Session *(session_factory_t)(void *arg);
 
 class Listener {
@@ -36,8 +34,7 @@ public:
     Listener();
 
     // 
-    // Start up a TLS Listener that calls 'factory' on each new accepted client.
-    // Certificate is provided via 'certificate/key.h' and 'certificate/cert.h' in include path.
+    // Start up a regular Listener that calls 'factory' on each new accepted client.
     //
     int listen(u16_t port, session_factory_t *factory);
     
@@ -49,7 +46,6 @@ private:
 
     session_factory_t           *m_session_factory;
 
-    altcp_tls_config           *m_conf;
     altcp_pcb                  *m_bind_pcb;
     altcp_pcb                  *m_listen_pcb;
 

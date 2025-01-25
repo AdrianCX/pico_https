@@ -35,7 +35,6 @@ int Listener::NUM_LISTENERS = 0;
 
 Listener::Listener()
     : m_session_factory(NULL)
-    , m_conf(NULL)
     , m_bind_pcb(NULL)
     , m_listen_pcb(NULL)
 {

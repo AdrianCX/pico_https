@@ -107,13 +107,6 @@ bool HTTPSession::sendWebSocketData(const uint8_t *body, int body_len)
         return false;
     }
 
-    err_t err = flush();
-    
-    if (err != ERR_OK) {
-        trace("HTTPSession::sendWebSocketData: this=%p, failed flushing websocket data error[%d]\n", this, err);
-        return false;
-    }
-
     return true;
 }
 
@@ -141,11 +134,10 @@ bool HTTPSession::sendHttpReply(const char *extra_headers, const char *body, int
 
     err = send((u8_t*)body, body_len);
     if (err != ERR_OK) {
-        trace("HTTPSession::sendReply: this=%p, failed sending body, error[%d]\n", this, err);
+        trace("HTTPSession::sendReply: this=%p, failed sending body[%p], error[%d] body_len[%d]\n", this, body, err, body_len);
         return false;
     }
 
-    flush();
     return true;
 }
 
@@ -208,7 +200,6 @@ bool HTTPSession::acceptWebSocket(HTTPHeader& header)
         return false;
     }
 
-    flush();
     m_state = WEBSOCKET_ESTABLISHED;
     trace("HTTPSession::acceptWebSocket: this=%p, websocket accepted, reply:\n%s\n", this, reply);
     return true;    

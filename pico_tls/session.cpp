@@ -20,7 +20,13 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+
+#ifdef PICO_TLS_DEBUG
+#include "pico_logger.h"
+#else
 #include "pico_nologger.h"
+#endif
+
 #include "session.h"
 
 #include <string.h>
@@ -37,6 +43,8 @@ int Session::NUM_SESSIONS = 0;
 Session::Session(void *arg)
     : m_pcb((struct altcp_pcb *)arg)
     , m_closing(false)
+    , m_sending(false)
+    , m_sentBytes(0)
 {
     trace("Session::Session: this=%p, pcb=%p\n", this, m_pcb);
     
@@ -76,8 +84,42 @@ err_t Session::send(const u8_t *data, size_t len)
     {
         return ERR_OK;
     }
-    
-    return altcp_write(m_pcb, data, len, TCP_WRITE_FLAG_COPY);
+
+    m_sending = true;
+
+    // if len exceeds MBEDTLS_SSL_OUT_CONTENT_LEN then it will quietly fail in "altcp_tls_mbedtls.c" / "altcp_mbedtls_write"
+    while (len > 0)
+    {
+        int bytesToSend = (len > MBEDTLS_SSL_OUT_CONTENT_LEN) ? MBEDTLS_SSL_OUT_CONTENT_LEN : len;
+        trace("Session::send: this=%p, m_pcb=%p, data=%p, len=%d bytesToSend=%d\n", this, m_pcb, data, len, bytesToSend);
+        
+        err_t err = altcp_write(m_pcb, data, bytesToSend, TCP_WRITE_FLAG_COPY);
+
+        if (err != ERR_OK)
+        {
+            m_sending = false;
+            return err;
+        }
+
+        if (m_closing)
+        {
+            m_sending = false;
+            on_closed();
+            return ERR_ABRT;
+        }
+        
+        data += bytesToSend;
+        len -= bytesToSend;
+    }
+
+    m_sending = false;
+
+    if (m_sentBytes > 0)
+    {
+        http_sent(this, m_pcb, 0);
+    }
+
+    return flush();
 }
 
 err_t Session::flush()
@@ -101,7 +143,19 @@ err_t Session::http_sent(void *arg, struct altcp_pcb *pcb, u16_t len)
         return ERR_VAL;
     }
 
-    ((Session *)arg)->on_sent(len);
+    Session *self = ((Session *)arg);
+    
+    if (self->m_sending)
+    {
+        self->m_sentBytes += len;
+    }
+    else
+    {
+        len += self->m_sentBytes;
+        self->m_sentBytes = 0;
+        
+        self->on_sent(len);
+    }
     return ERR_OK;
 }
 
@@ -172,7 +226,11 @@ void Session::http_err(void *arg, err_t err)
     
     self->m_pcb = NULL;
     self->on_error(err, lwip_strerr(err));
-    self->on_closed();
+
+    if (!self->m_sending)
+    {
+        self->on_closed();
+    }
 }
 
 err_t Session::close()
@@ -183,11 +241,15 @@ err_t Session::close()
     {
         return ERR_OK;
     }
+    
     m_closing = true;
 
     if (m_pcb == NULL)
     {
-        on_closed();
+        if (!m_sending)
+        {
+            on_closed();
+        }
         return ERR_OK;
     }
 
@@ -205,6 +267,10 @@ err_t Session::close()
         err = ERR_ABRT;
     }
 
-    on_closed();
+    if (!m_sending)
+    {
+        on_closed();
+    }
     return err;
 }
+

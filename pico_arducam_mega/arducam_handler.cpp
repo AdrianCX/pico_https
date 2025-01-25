@@ -39,16 +39,23 @@ ArducamHandler& ArducamHandler::getInstance() {
 
 ArducamHandler::ArducamHandler()
 {
-    m_camera = createArducamCamera(CAMERA_CS_PIN);
-    begin(&m_camera);
 }
 
 
 bool ArducamHandler::requestCapture(int8_t resolution, int8_t quality, int8_t brightness, int8_t contrast, int8_t evlevel, int8_t saturation, int8_t sharpness)
 {
+    trace("ArducamHandler::requestCapture()", this);
     if (m_frameTransferActive)
     {
         return true;
+    }
+
+    if (!m_created)
+    {
+        m_camera = createArducamCamera(CAMERA_CS_PIN);
+        begin(&m_camera);
+        
+        m_created = true;
     }
     
     if (!m_initialized || quality != m_quality)
