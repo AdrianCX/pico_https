@@ -8,7 +8,7 @@
 
 #include "logging_config.h"
 #include "pico_logger.h"
-#include "m0FaultDispatch/m0FaultDispatch.h"
+#include "cm_backtrace/cm_backtrace.h"
 
 #ifndef LOGGING_SERVER_BINARY_PORT
 #define LOGGING_SERVER_BINARY_PORT LOGGING_SERVER_PORT
@@ -30,13 +30,18 @@ int log_count = 0;
 extern "C" {
 #endif
 
+void __attribute__((used,naked)) HardFault_Handler(void);
+void __attribute__((used,naked)) Nop_Handler(void) {};
+
 const char *safestr(const char *value)
 {
     return value != NULL ? value : "null";
 }
 
-int start_logging_server()
+int start_logging_server(const char *binary_name, const char *hardware_name, const char *software_version)
 {
+    cm_backtrace_init(binary_name, hardware_name, software_version);
+    
     const ip_addr_t any_addr = {0};
     ip_addr_t remote_addr;
 
@@ -69,7 +74,6 @@ int start_logging_server()
     exception_set_exclusive_handler(SVCALL_EXCEPTION,HardFault_Handler);
     exception_set_exclusive_handler(PENDSV_EXCEPTION,HardFault_Handler);
     exception_set_exclusive_handler(NMI_EXCEPTION, HardFault_Handler);
-
 
     strncpy(address, ip4addr_ntoa(netif_ip4_addr(netif_list)), ADDRESS_SIZE-1);
     
@@ -142,55 +146,25 @@ void fail(const char *format, ...)
     send_message("fail", format, args);
     va_end (args);
 }
-    
 
-void m0FaultHandle(struct M0excFrame *exc, struct M0highRegs *hiRegs, enum M0faultReason reason, uint32_t addr){
-	static const char *names[] = {
-		[M0faultMemAccessFailR] = "Memory read failed",
-		[M0faultMemAccessFailW] = "Memory write failed",
-		[M0faultUnalignedAccess] = "Data alignment fault",
-		[M0faultInstrFetchFail] = "Instr fetch failure",
-		[M0faultUnalignedPc] = "Code alignment fault",
-		[M0faultUndefInstr16] = "Undef 16-bit instr",
-		[M0faultUndefInstr32] = "Undef 32-bit instr",
-		[M0faultBkptInstr] = "Breakpoint hit",
-		[M0faultArmMode] = "ARM mode entered",
-		[M0faultUnclassifiable] = "Unclassified fault",
-	};
+void trace_stack()
+{
+    cm_backtrace_assert(cmb_get_sp());
+}
 
-	trace("%s sr = 0x%08lx\r\n", (reason<sizeof(names)/sizeof(*names) && names[reason])? names[reason] : "????",exc->sr);
-	trace("R0  = 0x%08lx  R8  = 0x%08lx\r\n", exc->r0_r3[0], hiRegs->r8_r11[0]);
-	trace("R1  = 0x%08lx  R9  = 0x%08lx\r\n", exc->r0_r3[1], hiRegs->r8_r11[1]);
-	trace("R2  = 0x%08lx  R10 = 0x%08lx\r\n", exc->r0_r3[2], hiRegs->r8_r11[2]);
-	trace("R3  = 0x%08lx  R11 = 0x%08lx\r\n", exc->r0_r3[3], hiRegs->r8_r11[3]);
-	trace("R4  = 0x%08lx  R12 = 0x%08lx\r\n", hiRegs->r4_r7[0], exc->r12);
-	trace("R5  = 0x%08lx  SP  = 0x%08lx\r\n", hiRegs->r4_r7[1], (uint32_t)(exc + 1));
-	trace("R6  = 0x%08lx  LR  = 0x%08lx\r\n", hiRegs->r4_r7[2], exc->lr);
-	trace("R7  = 0x%08lx  PC  = 0x%08lx\r\n", hiRegs->r4_r7[3], exc->pc);
-
-    switch (reason) {
-        case M0faultMemAccessFailR: trace(" -> failed to read 0x%08lx\r\n", addr); break;
-        case M0faultMemAccessFailW: trace(" -> failed to write 0x%08lx\r\n", addr); break;
-        case M0faultUnalignedAccess: trace(" -> unaligned access to 0x%08lx\r\n", addr); break;
-        case M0faultUndefInstr16: trace(" -> undef instr16: 0x%04x\r\n", ((uint16_t*)exc->pc)[0]); break;
-        case M0faultUndefInstr32: trace(" -> undef instr32: 0x%04x 0x%04x\r\n", ((uint16_t*)exc->pc)[0], ((uint16_t*)exc->pc)[1]);
-        default:
-            break;
-    }
-    
-    for (int i=0;i<10;++i)
+void force_restart()
+{
+    for (int i=0;i<5;i++)
     {
-        trace("crashed at: 0x%08lx\n", exc->pc);
-        sleep_ms(1000);
+        trace("force_restart: waiting for %d seconds", 5-i);
+        busy_wait_us(1000000);
     }
-
+    
     #define AIRCR_Register (*((volatile uint32_t*)(PPB_BASE + 0x0ED0C)))
     AIRCR_Register = 0x5FA0004;
 }
 
-     
     
-
 #ifdef __cplusplus
 }
 #endif
