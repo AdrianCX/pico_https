@@ -20,36 +20,39 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-#ifndef PICO_NONE_TLS_LISTENER_H
-#define PICO_NONE_TLS_LISTENER_H
+#ifndef PICO_NONE_CLIENT_H
+#define PICO_NONE_CLIENT_H
 
 #include "pico/cyw43_arch.h"
 
 #include "session.h"
 
-typedef void (session_factory_t)(void *arg);
-
-class Listener {
+class TCPClient : public ISessionCallback
+{
 public:
-    Listener();
+    TCPClient();
+    virtual ~TCPClient();
 
     // 
     // Start up a regular Listener that calls 'factory' on each new accepted client.
     //
-    int listen(u16_t port, session_factory_t *factory);
+    bool connect(const char *host, u16_t port);
+    bool connect(const char *host, const ip_addr_t *ipaddr, u16_t port);
+
+    virtual void on_sent(u16_t len) override;
+    virtual void on_recv(u8_t *data, size_t len) override;
+    virtual void on_closed() override;
+    virtual void on_connected();
+
+    static int get_num_clients() { return NUM_CLIENTS; }
     
 private:
-    // Cleanup not implemented yet for listener, expecting it to live for the whole runtime of the pico
-    ~Listener();
+    static void dns_callback(const char* hostname, const ip_addr_t *ipaddr, void *arg);
 
-    static err_t http_accept(void *arg, struct altcp_pcb *pcb, err_t err);
+    static int NUM_CLIENTS;
 
-    session_factory_t           *m_session_factory;
-
-    altcp_pcb                  *m_bind_pcb;
-    altcp_pcb                  *m_listen_pcb;
-
-    static int NUM_LISTENERS;
+    u16_t m_port;
+    std::shared_ptr<Session> m_session;
 };
 
 #endif

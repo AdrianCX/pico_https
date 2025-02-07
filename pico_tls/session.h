@@ -23,7 +23,10 @@ SOFTWARE.
 #ifndef PICO_SESSION_H
 #define PICO_SESSION_H
 
+#include <memory>
+
 #include "pico/cyw43_arch.h"
+#include "lwip/altcp_tcp.h"
 
 // Values for lwip err_t 
 //
@@ -45,56 +48,48 @@ SOFTWARE.
 //  ENOTCONN,      /* ERR_CLSD       -15     Connection closed.       */
 //  EIO            /* ERR_ARG        -16     Illegal argument.        */
 
-// Can be either TLS or regular TCP, abstracted away by altcp.
-class Session {
+extern altcp_allocator_t tcp_allocator;
+
+class ISessionCallback
+{
 public:
-    Session(void *arg);
-    //
-    // Send the requested parameters, get called back as bytes are sent in on_sent.
-    //
-    // @returns - ERR_MEM if the length of the data exceeds the current send buffer size or if the length of the queue of outgoing segment is larger than the upper limit defined in lwipopts.h.
-    //            can call send_buffer_size() to obtain max buffer size available.
-    //          - ERR_CLSD if trying to send data on already closed connection.
-    //          - ERR_VAL if data is NULL
-    //
-    err_t send(const u8_t *data, size_t len);
     virtual void on_sent(u16_t len) {}
+    virtual void on_recv(u8_t *data, size_t len) {}
+    virtual void on_closed() {};
+    virtual void on_connected() {};
+};
+
+// Can be either TLS or regular TCP, abstracted away by altcp.
+class Session : public std::enable_shared_from_this<Session> {
+public:
+    static std::shared_ptr<Session> create(void *arg) { return std::make_shared<Session>(arg); }
+
+    Session(void *arg);
+    virtual ~Session();
+    
+    err_t connect(const ip_addr_t *ipaddr, u16_t port);
+    err_t send(const u8_t *data, size_t len);
+    err_t close();
 
     err_t flush();
     u16_t send_buffer_size();
 
-    //
-    // Called when data is received.
-    //
-    virtual bool on_recv(u8_t *data, size_t len) { return true; }
+    static int get_num_sessions() { return NUM_SESSIONS; }
 
-    //
-    // Call when you want to close the connection, wait until on_closed is called to confirm/free memory.
-    //
-    err_t close();
-    virtual void on_closed() {}
-
-    //
-    // Called when error ocurred. Connection is closed at this point. Session object still exists until user decides to delete.
-    //
-    virtual void on_error(err_t err, const char *err_str) {}
-
-    static int getNumSessions() { return NUM_SESSIONS; }
-
-protected:
-    virtual ~Session();
+    void set_callback(ISessionCallback *callback) { m_callback = callback; }
     
 private:
-    static err_t http_recv(void *arg, struct altcp_pcb *pcb, struct pbuf *p, err_t err);
-    static err_t http_sent(void *arg, struct altcp_pcb *pcb, u16_t len);
-    static err_t http_close_or_abort_conn(struct altcp_pcb *pcb, Session *hs, u8_t abort_conn);
-    static err_t http_close_conn(struct altcp_pcb *pcb, Session *hs);
-    static void http_err(void *arg, err_t err);
+    static err_t lwip_connected(void *arg, struct altcp_pcb *pcb, err_t err);
+    static err_t lwip_recv(void *arg, struct altcp_pcb *pcb, struct pbuf *p, err_t err);
+    static err_t lwip_sent(void *arg, struct altcp_pcb *pcb, u16_t len);
+    static err_t lwip_close_or_abort_conn(struct altcp_pcb *pcb, Session *hs, u8_t abort_conn);
+    static err_t lwip_close_conn(struct altcp_pcb *pcb, Session *hs);
+    static void lwip_err(void *arg, err_t err);
 
     struct altcp_pcb *m_pcb;
+    ISessionCallback *m_callback;
     bool m_closing;
     bool m_sending;
-
     u16_t m_sentBytes;
     
     static int NUM_SESSIONS;

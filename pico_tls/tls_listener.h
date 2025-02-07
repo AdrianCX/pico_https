@@ -29,7 +29,7 @@ SOFTWARE.
 
 struct altcp_tls_config;
 
-typedef Session *(session_factory_t)(void *arg);
+typedef void (session_factory_t)(void *arg);
 
 class TLSListener {
 public:

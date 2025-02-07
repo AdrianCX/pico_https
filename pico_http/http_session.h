@@ -43,11 +43,11 @@ enum HTTPSessionState
 };
 
 class HTTPSession
-    : public Session
-    , public WebSocketInterface
+    : public WebSocketInterface
+    , public ISessionCallback
 {
 public:
-    static Session *create(void *arg);
+    static void create(void *arg);
 
     virtual bool onRequestReceived(HTTPHeader& header) { return false; };
     virtual bool onHttpData(u8_t *data, size_t len) { return false; }
@@ -60,18 +60,22 @@ public:
     bool sendHttpReply(const char *extra_headers, const char *body, int body_len);
     bool sendWebSocketData(const uint8_t *body, int body_len);
 
-    virtual bool on_recv(u8_t *data, size_t len) override;
+    virtual void on_recv(u8_t *data, size_t len) override;
     virtual void on_sent(u16_t len) override;
     virtual void on_closed() override;
 
+    void close();
+    u16_t send_buffer_size();
+
 protected:
     HTTPSession(void *arg);
-    virtual ~HTTPSession() {}
+    virtual ~HTTPSession();
     
 private:
     HTTPSessionState m_state;
     HTTPHeader m_header;
     WebSocketHandler m_websocketHandler;
+    std::shared_ptr<Session> m_session;
 };
 
 #endif

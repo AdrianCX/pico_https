@@ -29,8 +29,6 @@ SOFTWARE.
 #include "lwip/altcp_tcp.h"
 #include "lwip/altcp_tls.h"
 
-altcp_allocator_t tcp_allocator {altcp_tcp_alloc, nullptr};
-
 int Listener::NUM_LISTENERS = 0;
 
 Listener::Listener()

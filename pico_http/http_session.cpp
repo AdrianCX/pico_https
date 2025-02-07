@@ -30,26 +30,33 @@ SOFTWARE.
 #include "mbedtls_wrapper.h"
 #include "pico_logger.h"
 
-Session *HTTPSession::create(void *arg) {
-    return new HTTPSession(arg);
+void HTTPSession::create(void *arg) {
+    new HTTPSession(arg);
 }
 
 HTTPSession::HTTPSession(void *arg)
-    : Session(arg)
-    , m_state(INIT)
+    : m_state(INIT)
+    , m_session(Session::create(arg))
 {
     trace("HTTPSession::HTTPSession: this=%p, arg=%p\n", this, arg);
+
+    m_session->set_callback(this);
 }
 
-bool HTTPSession::on_recv(u8_t *data, size_t len) {
+HTTPSession::~HTTPSession()
+{
+}
+
+void HTTPSession::on_recv(u8_t *data, size_t len)
+{
     switch (m_state)
     {
         case INIT:
         {
             if (!m_header.parse((char *)data, len))
             {
-                m_state = FAIL;
-                return false;
+                close();
+                return;
             }
             
             trace("HTTPSession::on_recv: this=%p, header:\n", this);
@@ -58,40 +65,48 @@ bool HTTPSession::on_recv(u8_t *data, size_t len) {
             m_state = HEADER_RECEIVED;
             if (!onRequestReceived(m_header))
             {
-                m_state = FAIL;
-                return false;
+                close();
+                return;
             }
 
             data += m_header.getHeaderSize();
             len -= m_header.getHeaderSize();
             
-            if (len > 0)
+            if ((len > 0) && (!onHttpData(data,len)))
             {
-                return onHttpData(data,len);
+                close();
+                return;
             }
-            
-            return true;
+
+            break;
         }
         case HEADER_RECEIVED:
         {
-            return onHttpData(data,len);            
+            if (!onHttpData(data,len))
+            {
+                close();
+            }
+            
+            break;
         }
         case WEBSOCKET_ESTABLISHED:
         {
-            return m_websocketHandler.decodeData(data, len, this);
+            if (!m_websocketHandler.decodeData(data, len, this))
+            {
+                close();
+            }
+            break;
         }
         case FAIL:
         {
-            return false;
+            break;
         }
     }
-    
-    return false;
 }
 
 bool HTTPSession::onWebsocketEncodedData(const uint8_t *data, size_t len)
 {
-    err_t err = send((u8_t*)data, len);
+    err_t err = m_session->send((u8_t*)data, len);
     if (err != ERR_OK) {
         trace("HTTPSession::onWebsocketEncodedData: this=%p, failed sending websocket data error[%d]\n", this, err);
         return false;
@@ -126,13 +141,13 @@ bool HTTPSession::sendHttpReply(const char *extra_headers, const char *body, int
 
     trace("HTTPSession::sendReply: this=%p, replyHeader:\n%s\n", this, buffer);
 
-    err_t err = send((u8_t*)buffer, n);
+    err_t err = m_session->send((u8_t*)buffer, n);
     if (err != ERR_OK) {
         trace("HTTPSession::sendReply: this=%p, failed sending header error[%d]\n", this, err);
         return false;
     }
 
-    err = send((u8_t*)body, body_len);
+    err = m_session->send((u8_t*)body, body_len);
     if (err != ERR_OK) {
         trace("HTTPSession::sendReply: this=%p, failed sending body[%p], error[%d] body_len[%d]\n", this, body, err, body_len);
         return false;
@@ -193,7 +208,7 @@ bool HTTPSession::acceptWebSocket(HTTPHeader& header)
         return false;
     }
     
-    err = send((u8_t*)reply, n);
+    err = m_session->send((u8_t*)reply, n);
     if (err != ERR_OK)
     {
         printf("HTTPSession::acceptWebSocket: failed sending reply, error[%d]", err);
@@ -209,7 +224,23 @@ bool HTTPSession::acceptWebSocket(HTTPHeader& header)
 void HTTPSession::on_sent(u16_t len) {
 }
 
+void HTTPSession::close()
+{
+    m_state = FAIL;
+    
+    if (m_session)
+    {
+        m_session->close();
+    }
+}
+
+u16_t HTTPSession::send_buffer_size()
+{
+    return m_session ? m_session->send_buffer_size() : 0;
+}
+
 void HTTPSession::on_closed() {
     trace("HTTPSession::on_closed: this=%p\n", this);
     delete this;
 }
+
