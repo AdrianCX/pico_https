@@ -409,12 +409,13 @@ size_t cm_backtrace_call_stack(uint32_t *buffer, size_t size, uint32_t sp) {
  * @param sp stack pointer
  */
 static void print_call_stack(uint32_t sp) {
-    size_t i, cur_depth = 0;
     uint32_t call_stack_buf[CMB_CALL_STACK_MAX_DEPTH] = {0};
+    uint32_t cur_depth = cm_backtrace_call_stack(call_stack_buf, CMB_CALL_STACK_MAX_DEPTH, sp);
+    cm_print_call_stack(call_stack_buf, cur_depth);
+}
 
-    cur_depth = cm_backtrace_call_stack(call_stack_buf, CMB_CALL_STACK_MAX_DEPTH, sp);
-
-    for (i = 0; i < cur_depth; i++) {
+void cm_print_call_stack(uint32_t *call_stack_buf, uint32_t cur_depth) {
+    for (size_t i = 0; i < cur_depth; i++) {
         sprintf(call_stack_info + i * (8 + 1), "%08lx", (unsigned long)call_stack_buf[i]);
         call_stack_info[i * (8 + 1) + 8] = ' ';
     }
@@ -620,6 +621,8 @@ void cm_backtrace_fault(uint32_t fault_handler_lr, uint32_t fault_handler_sp) {
     size_t stack_size = main_stack_size;
 #endif
 
+    fault_init(fault_handler_sp);
+    
     CMB_ASSERT(init_ok);
     /* only call once */
     CMB_ASSERT(!on_fault);

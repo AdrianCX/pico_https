@@ -34,15 +34,19 @@ extern "C" void trace(const char *parameters, ...);
 extern "C" const char *safestr(const char *value);
 
 HTTPHeader::HTTPHeader()
-    : m_command(NULL)
-    , m_path(NULL)
-    , m_numHeaders(0)
 {
 }
 
 void HTTPHeader::print()
 {
-    trace("HTTPHeader::print: this=%p, command[%s] path[%s]\n", this, safestr(m_command), safestr(m_path));
+    if (isRequest())
+    {
+        trace("HTTPHeader::print: this=%p, command[%s] path[%s]\n", this, safestr(m_first), safestr(m_second));
+    }
+    else
+    {
+        trace("HTTPHeader::print: this=%p, response[%s]\n", this, safestr(m_second));
+    }
     for (int i=0;i<m_numHeaders;++i)
     {
         trace("HTTPHeader::print: this=%p, name[%s] value[%s]\n", this, safestr(m_headerName[i]), safestr(m_headerValue[i]));
@@ -66,11 +70,13 @@ const char *HTTPHeader::getHeaderValue(const char *headerName)
 bool HTTPHeader::parse(char *data, int len)
 {
     m_numHeaders = 0;
+    m_responseCode = 0;
+    m_headerSize = 0;
 
     int i=0;
-    m_command = &data[i];
+    m_first = &data[i];
 
-    // GET/POST
+    // GET/POST or HTTP/1.1 for responses
     for (;i<len && data[i]!=' ';++i) {};
     
     if (i>=len)
@@ -78,16 +84,27 @@ bool HTTPHeader::parse(char *data, int len)
 
     data[i++] = 0;
 
-    // PATH
-    m_path = &data[i];
-    for (;i<len && data[i]!=' ';++i) {}
+    // PATH or response code
+    m_second = &data[i];
+    for (;i<len && data[i]!=' ';++i)
+    {
+        if (isResponse())
+        {
+            if ((data[i] < '0') || (data[i] > '9'))
+            {
+                return false;
+            }
+            
+            m_responseCode = m_responseCode * 10 + (m_second[0] - '0');
+        }
+    }
     
     if (i>=len)
         return false;
 
     data[i++]=0;
 
-    // HTTP/1.[01]
+    // HTTP/1.[01] or response text
     for (;i<len && data[i]!='\n';++i) {}
 
     ++i;

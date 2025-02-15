@@ -4,8 +4,6 @@ target_sources(pico_tls INTERFACE
   ${CMAKE_CURRENT_SOURCE_DIR}/tls_listener.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/listener.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/session.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/tcp_client.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/tls_client.cpp
   )
 
 target_link_libraries(pico_tls INTERFACE pico_lwip_mbedtls pico_mbedtls pico_logger)

@@ -92,6 +92,6 @@ err_t Listener::http_accept(void *arg, struct altcp_pcb *pcb, err_t err)
     }
 
     // Right now no shared pointers or session tracking, we might want to do that in the future in which case track returned objects
-    ((Listener *)arg)->m_session_factory(pcb);
+    ((Listener *)arg)->m_session_factory(pcb, false);
     return ERR_OK;
 }

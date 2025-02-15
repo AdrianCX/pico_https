@@ -27,8 +27,6 @@ SOFTWARE.
 
 #include "session.h"
 
-typedef void (session_factory_t)(void *arg);
-
 class Listener {
 public:
     Listener();

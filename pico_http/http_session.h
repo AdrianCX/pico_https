@@ -47,7 +47,7 @@ class HTTPSession
     , public ISessionCallback
 {
 public:
-    static void create(void *arg);
+    static void create(void *arg, bool tls);
 
     virtual bool onRequestReceived(HTTPHeader& header) { return false; };
     virtual bool onHttpData(u8_t *data, size_t len) { return false; }
@@ -60,22 +60,22 @@ public:
     bool sendHttpReply(const char *extra_headers, const char *body, int body_len);
     bool sendWebSocketData(const uint8_t *body, int body_len);
 
-    virtual void on_recv(u8_t *data, size_t len) override;
-    virtual void on_sent(u16_t len) override;
+    virtual bool on_recv(u8_t *data, size_t len) override;
+    virtual bool on_sent(u16_t len) override;
     virtual void on_closed() override;
 
     void close();
     u16_t send_buffer_size();
 
 protected:
-    HTTPSession(void *arg);
+    HTTPSession(void *arg, bool tls);
     virtual ~HTTPSession();
     
 private:
     HTTPSessionState m_state;
     HTTPHeader m_header;
     WebSocketHandler m_websocketHandler;
-    std::shared_ptr<Session> m_session;
+    Session *m_session;
 };
 
 #endif

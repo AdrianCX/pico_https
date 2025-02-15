@@ -23,6 +23,12 @@ SOFTWARE.
 #ifndef HTTP_HEADER_H
 #define HTTP_HEADER_H
 
+#ifdef __TARGET_CPU_CORTEX_M0PLUS
+#include "pico/stdlib.h"
+#else
+#include "stdlib.h"
+#include <cstdint>
+#endif
 
 ///
 /// Simple HTTP Header parser that uses provided data in place, no allocations or extra buffers.
@@ -36,8 +42,10 @@ public:
 
     bool parse(char *data, int len);
 
-    const char *getCommand() { return m_command; }
-    const char *getPath() { return m_path; }
+    const char *getCommand() { return isRequest() ? m_first : NULL; }
+    const char *getPath() { return isRequest() ? m_second : NULL; }
+    
+    uint16_t getResponseCode() { return isResponse() ? m_responseCode : 0; }
 
     int getNumHeaders() { return m_numHeaders; }
     const char *getHeaderValue(const char *headerName);
@@ -45,15 +53,21 @@ public:
     int getHeaderSize() { return m_headerSize; }
 
     void print();
-private:
-    char *m_command;
-    char *m_path;
-    
-    int m_numHeaders;
-    char *m_headerName[MAX_HEADERS];
-    char *m_headerValue[MAX_HEADERS];
 
-    int m_headerSize;
+    bool isRequest() { return m_second != NULL ? (m_second[0] == '/') : false; }
+    bool isResponse() { return m_second != NULL ? (m_second[0] != '/') : false; }
+
+private:
+    uint8_t m_numHeaders = 0;
+    uint16_t m_headerSize = 0;
+    uint16_t m_responseCode = 0;
+
+    char *m_first = NULL;
+    char *m_second = NULL;
+    
+    char *m_headerName[MAX_HEADERS] = { 0 };
+    char *m_headerValue[MAX_HEADERS] = { 0 };
+
 };
 
 #endif

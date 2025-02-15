@@ -5,6 +5,9 @@
 
 #include "hardware/exception.h"
 #include "hardware/watchdog.h"
+#include "hardware/timer.h"
+#include "hardware/irq.h"
+#include "hardware/watchdog.h"
 
 #include "logging_config.h"
 #include "pico_logger.h"
@@ -26,22 +29,43 @@ char address[ADDRESS_SIZE] = {0};
 // So we can see order and when logs go missing, counter on receiver will skip a few numbers
 int log_count = 0;
 
+#define ALARM_NUM 0
+#define ALARM_IRQ timer_hardware_alarm_get_irq_num(timer_hw, ALARM_NUM)
+
+#define MAGIC_CALLSTACK 0xdeadbeef
+uint32_t __uninitialized_ram(last_command);
+uint32_t __uninitialized_ram(cur_depth);
+uint32_t __uninitialized_ram(call_stack_buf)[CMB_CALL_STACK_MAX_DEPTH];
+
+uint32_t watchdog_timeout_us = 0;
+                                            
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 void __attribute__((used,naked)) HardFault_Handler(void);
-void __attribute__((used,naked)) Nop_Handler(void) {};
+
+static void watchdog_timeout(void) {
+    // Clear the alarm irq
+    hw_clear_bits(&timer_hw->intr, 1u << ALARM_NUM);
+
+    // save the callstack
+    fault_init(cmb_get_sp());
+
+    // restart
+    #define AIRCR_Register (*((volatile uint32_t*)(PPB_BASE + 0x0ED0C)))
+    AIRCR_Register = 0x5FA0004;
+}
 
 const char *safestr(const char *value)
 {
     return value != NULL ? value : "null";
 }
 
-int start_logging_server(const char *binary_name, const char *hardware_name, const char *software_version)
+int start_logging_server(const char *binary_name, const char *hardware_name, const char *software_version, uint32_t watchdog_ms)
 {
     cm_backtrace_init(binary_name, hardware_name, software_version);
-    
+
     const ip_addr_t any_addr = {0};
     ip_addr_t remote_addr;
 
@@ -76,10 +100,32 @@ int start_logging_server(const char *binary_name, const char *hardware_name, con
     exception_set_exclusive_handler(NMI_EXCEPTION, HardFault_Handler);
 
     strncpy(address, ip4addr_ntoa(netif_ip4_addr(netif_list)), ADDRESS_SIZE-1);
+
+    if (watchdog_ms != 0)
+    {
+        watchdog_timeout_us = watchdog_ms * 1000;
+
+        // Use a regular IRQ so we can save call stack
+        hw_set_bits(&timer_hw->inte, 1u << ALARM_NUM);
+        irq_set_exclusive_handler(ALARM_IRQ, watchdog_timeout);
+        irq_set_enabled(ALARM_IRQ, true);
+        timer_hw->alarm[ALARM_NUM] = timer_hw->timerawl + watchdog_timeout_us;
+
+        // start watchdog just in case everything else fails 1 second after a IRQ would trigger
+        //watchdog_enable(watchdog_ms + 1000, 1);
+    }
     
+    report_saved_crash();
     return 1;
 }
 
+void update_watchdog()
+{
+    timer_hw->alarm[ALARM_NUM] = timer_hw->timerawl + watchdog_timeout_us;
+    //watchdog_update();
+}
+
+    
 static void send_message(const char *category, const char *format, va_list args)
 {
     int time = to_us_since_boot(get_absolute_time())/1000;
@@ -147,6 +193,16 @@ void fail(const char *format, ...)
     va_end (args);
 }
 
+void pico_logger_panic(const char *parameters, ...)
+{
+    // save call stack
+    fault_init(cmb_get_sp());
+
+    // restart
+    #define AIRCR_Register (*((volatile uint32_t*)(PPB_BASE + 0x0ED0C)))
+    AIRCR_Register = 0x5FA0004;
+}
+
 void trace_stack()
 {
     cm_backtrace_assert(cmb_get_sp());
@@ -154,9 +210,8 @@ void trace_stack()
 
 void force_restart()
 {
-    for (int i=0;i<5;i++)
+    for (int i=0;i<3;i++)
     {
-        trace("force_restart: waiting for %d seconds", 5-i);
         busy_wait_us(1000000);
     }
     
@@ -164,6 +219,31 @@ void force_restart()
     AIRCR_Register = 0x5FA0004;
 }
 
+void fault_init(uint32_t fault_handler_sp)
+{
+    // save crash for sending on restart as well.
+    cur_depth = 0;
+    last_command = MAGIC_CALLSTACK;
+    cur_depth = cm_backtrace_call_stack(call_stack_buf, CMB_CALL_STACK_MAX_DEPTH, fault_handler_sp);
+}
+
+void report_saved_crash()
+{
+    trace("report_saved_crash: last boot info, watchdog: %d/%d, last_command: 0x%x, cur_depth: %d", watchdog_caused_reboot(), watchdog_enable_caused_reboot(), last_command, cur_depth);
+    if (last_command != MAGIC_CALLSTACK)
+    {
+        last_command = 0;
+        return;
+    }
+
+    if (cur_depth > CMB_CALL_STACK_MAX_DEPTH || cur_depth == 0)
+    {
+        // corrupted ram data
+        return;
+    }
+
+    cm_print_call_stack(call_stack_buf, cur_depth);
+}
     
 #ifdef __cplusplus
 }

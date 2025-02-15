@@ -105,12 +105,12 @@ int TLSListener::listen(u16_t port, session_factory_t factory)
 
 err_t TLSListener::http_accept(void *arg, struct altcp_pcb *pcb, err_t err)
 {
-    trace("TLSListener::http_accept: this=%p, pcb=%d, err=%s\n", arg, pcb, lwip_strerr(err));
+    trace("TLSListener::http_accept: this=%p, pcb=%p, err=%s\n", arg, pcb, lwip_strerr(err));
     if ((err != ERR_OK) || (pcb == NULL)) {
         return ERR_VAL;
     }
 
     // Right now no shared pointers or session tracking, we might want to do that in the future in which case track returned objects
-    ((TLSListener *)arg)->m_session_factory(pcb);
+    ((TLSListener *)arg)->m_session_factory(pcb, true);
     return ERR_OK;
 }

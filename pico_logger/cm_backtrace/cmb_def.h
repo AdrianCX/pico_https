@@ -106,7 +106,7 @@
 
 /* supported function call stack max depth, default is 32 */
 #ifndef CMB_CALL_STACK_MAX_DEPTH
-#define CMB_CALL_STACK_MAX_DEPTH       32
+#define CMB_CALL_STACK_MAX_DEPTH       50
 #endif
 
 /* 
@@ -308,7 +308,7 @@ struct cmb_hard_fault_regs{
 if (!(EXPR))                                                                   \
 {                                                                              \
     cmb_println("(%s) has assert failed at %s.", #EXPR, __FUNCTION__);         \
-    while (1);                                                                 \
+    while (0);                                                                 \
 }
 
 /* ELF(Executable and Linking Format) file extension name for each compiler */

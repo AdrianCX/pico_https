@@ -29,8 +29,6 @@ SOFTWARE.
 
 struct altcp_tls_config;
 
-typedef void (session_factory_t)(void *arg);
-
 class TLSListener {
 public:
     TLSListener();

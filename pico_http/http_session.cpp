@@ -30,13 +30,13 @@ SOFTWARE.
 #include "mbedtls_wrapper.h"
 #include "pico_logger.h"
 
-void HTTPSession::create(void *arg) {
-    new HTTPSession(arg);
+void HTTPSession::create(void *arg, bool tls) {
+    new HTTPSession(arg, tls);
 }
 
-HTTPSession::HTTPSession(void *arg)
+HTTPSession::HTTPSession(void *arg, bool tls)
     : m_state(INIT)
-    , m_session(Session::create(arg))
+    , m_session(new Session(arg, tls))
 {
     trace("HTTPSession::HTTPSession: this=%p, arg=%p\n", this, arg);
 
@@ -45,9 +45,14 @@ HTTPSession::HTTPSession(void *arg)
 
 HTTPSession::~HTTPSession()
 {
+    trace("HTTPSession::~HTTPSession: this=%p, arg=%p\n", this, m_session);
+    if (m_session != NULL)
+    {
+        delete m_session;
+    }
 }
 
-void HTTPSession::on_recv(u8_t *data, size_t len)
+bool HTTPSession::on_recv(u8_t *data, size_t len)
 {
     switch (m_state)
     {
@@ -55,8 +60,7 @@ void HTTPSession::on_recv(u8_t *data, size_t len)
         {
             if (!m_header.parse((char *)data, len))
             {
-                close();
-                return;
+                return false;
             }
             
             trace("HTTPSession::on_recv: this=%p, header:\n", this);
@@ -65,8 +69,7 @@ void HTTPSession::on_recv(u8_t *data, size_t len)
             m_state = HEADER_RECEIVED;
             if (!onRequestReceived(m_header))
             {
-                close();
-                return;
+                return false;
             }
 
             data += m_header.getHeaderSize();
@@ -74,34 +77,25 @@ void HTTPSession::on_recv(u8_t *data, size_t len)
             
             if ((len > 0) && (!onHttpData(data,len)))
             {
-                close();
-                return;
+                return false;
             }
 
-            break;
+            return true;
         }
         case HEADER_RECEIVED:
         {
-            if (!onHttpData(data,len))
-            {
-                close();
-            }
-            
-            break;
+            return onHttpData(data,len);
         }
         case WEBSOCKET_ESTABLISHED:
         {
-            if (!m_websocketHandler.decodeData(data, len, this))
-            {
-                close();
-            }
-            break;
+            return m_websocketHandler.decodeData(data, len, this);
         }
         case FAIL:
         {
-            break;
+            return false;
         }
     }
+    return true;
 }
 
 bool HTTPSession::onWebsocketEncodedData(const uint8_t *data, size_t len)
@@ -221,7 +215,8 @@ bool HTTPSession::acceptWebSocket(HTTPHeader& header)
 }   
 
 
-void HTTPSession::on_sent(u16_t len) {
+bool HTTPSession::on_sent(u16_t len) {
+    return true;
 }
 
 void HTTPSession::close()
