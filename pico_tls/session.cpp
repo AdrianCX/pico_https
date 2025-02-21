@@ -59,7 +59,7 @@ Session::Session(void *arg, bool tls)
     , m_callback(NULL)
     , m_pcb((struct altcp_pcb *)arg)
 {
-    trace("Session::Session: this=%p, pcb=%p, tls=%d\n", this, m_pcb, tls);
+    trace("Session::Session: this=%p, pcb=%p, tls=%d\n", this, m_pcb, m_tls);
 
     if (m_pcb)
     {
@@ -83,7 +83,7 @@ void Session::init_pcb()
 
 Session::~Session()
 {
-    trace("Session::~Session: this:%p, m_pcb=%p, m_closing=%d\n", this, m_pcb, m_closing);
+    trace("Session::~Session: this:%p, m_pcb=%p, m_closing=%d, m_tls=%d\n", this, m_pcb, m_closing, m_tls);
 
     if (m_pcb != NULL)
     {
@@ -274,26 +274,12 @@ void Session::lwip_err(void *arg, err_t err)
         return;
     }
 
-    if (err == ERR_ABRT)
-    {
-        if (!self->m_tls)
-        {
-            // If not tls then PCB was already freed in tcp_abandon before calling TCP_EVENT_ERR
-            self->m_pcb = NULL;
-        }
-        else
-        {
-            // If tls, then we're getting called with ERR_ABRT but it wasn't actually freed and we need to clean up.
-            // altcp_tls_mbedtls.c -> altcp_mbedtls_lower_recv
-            altcp_arg(self->m_pcb, NULL);
-            altcp_recv(self->m_pcb, NULL);
-            altcp_err(self->m_pcb, NULL);
-            altcp_sent(self->m_pcb, NULL);
-            
-            self->m_pcb = NULL;
-        }
-    }
-
+    altcp_arg(self->m_pcb, NULL);
+    altcp_recv(self->m_pcb, NULL);
+    altcp_err(self->m_pcb, NULL);
+    altcp_sent(self->m_pcb, NULL);
+    self->m_pcb = NULL;
+    
     self->close();
 }
 

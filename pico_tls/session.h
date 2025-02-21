@@ -95,7 +95,8 @@ public:
     void set_callback(ISessionCallback *callback) { m_callback = callback; }
 
     static int get_num_sessions() { return NUM_SESSIONS; }
-    
+
+    void *get_pcb() { return m_pcb; }
 private:
     static err_t lwip_connected(void *arg, struct altcp_pcb *pcb, err_t err);
     static err_t lwip_recv(void *arg, struct altcp_pcb *pcb, struct pbuf *p, err_t err);

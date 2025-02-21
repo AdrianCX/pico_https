@@ -86,7 +86,7 @@ int Listener::listen(u16_t port, session_factory_t factory)
 
 err_t Listener::http_accept(void *arg, struct altcp_pcb *pcb, err_t err)
 {
-    trace("Listener::http_accept: this=%p, pcb=%d, err=%s\n", arg, pcb, lwip_strerr(err));
+    trace("Listener::http_accept: this=%p, pcb=%p, err=%s\n", arg, pcb, lwip_strerr(err));
     if ((err != ERR_OK) || (pcb == NULL)) {
         return ERR_VAL;
     }

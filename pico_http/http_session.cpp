@@ -38,14 +38,14 @@ HTTPSession::HTTPSession(void *arg, bool tls)
     : m_state(INIT)
     , m_session(new Session(arg, tls))
 {
-    trace("HTTPSession::HTTPSession: this=%p, arg=%p\n", this, arg);
+    trace("HTTPSession::HTTPSession: this=%p, arg=%p, tls=%d\n", this, arg, tls);
 
     m_session->set_callback(this);
 }
 
 HTTPSession::~HTTPSession()
 {
-    trace("HTTPSession::~HTTPSession: this=%p, arg=%p\n", this, m_session);
+    trace("HTTPSession::~HTTPSession: this=%p, session=%p, arg=%p\n", this, m_session, m_session != NULL ? m_session->get_pcb() : NULL);
     if (m_session != NULL)
     {
         delete m_session;
