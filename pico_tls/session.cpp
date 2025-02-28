@@ -265,8 +265,8 @@ err_t Session::lwip_recv(void *arg, struct altcp_pcb *pcb, struct pbuf *p, err_t
 
 void Session::lwip_err(void *arg, err_t err)
 {
-    trace("Session::lwip_err: this=%p, err=%s\n", arg, lwip_strerr(err));
-    
+    trace("Session::lwip_err: this=%p, err=%d, err_str=%s\n", arg, err, lwip_strerr(err));
+
     Session *self = (Session *)arg;
     if (self == NULL)
     {
@@ -324,7 +324,7 @@ err_t Session::close()
 
 err_t Session::connect(const char *host, u16_t port)
 {
-    trace("TCPClient::connect: this=%p host=%s, port=%d\n", this, safestr(host), port);
+    trace("Session::connect: this=%p host=%s, port=%d\n", this, safestr(host), port);
 
     m_port = port;
     

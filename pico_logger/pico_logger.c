@@ -172,7 +172,7 @@ void trace(const char *format, ...)
     va_end (args);
 }
 
-void trace_bytes(uint8_t *buffer, uint32_t size)
+void trace_bytes(const uint8_t *buffer, uint32_t size)
 {
     struct pbuf *p = pbuf_alloc( PBUF_TRANSPORT, size, PBUF_RAM);
     memcpy(p->payload, buffer, size);

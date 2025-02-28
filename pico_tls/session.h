@@ -53,6 +53,8 @@ typedef void (session_factory_t)(void *arg, bool tls);
 class ISessionCallback
 {
 public:
+    virtual ~ISessionCallback() {};
+    
     virtual bool on_sent(u16_t len) { return true; }
     virtual bool on_recv(u8_t *data, size_t len) { return true; }
     virtual void on_closed() {};
@@ -62,6 +64,8 @@ public:
 class ISessionSender
 {
 public:
+    virtual ~ISessionSender() {};
+    
     virtual err_t connect(const char *host, u16_t port) = 0;
     virtual err_t connect(const char *host, const ip_addr_t *ipaddr, u16_t port) = 0;
     virtual err_t send(const u8_t *data, size_t len) = 0;

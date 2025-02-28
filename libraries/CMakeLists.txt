@@ -1,0 +1,2 @@
+add_subdirectory(analog_microphone)
+add_subdirectory(pico_arducam_mega)
