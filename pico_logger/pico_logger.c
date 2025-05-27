@@ -187,10 +187,11 @@ void trace_bytes(const uint8_t *buffer, uint32_t size)
 
 void fail(const char *format, ...)
 {
-    va_list args;
-    va_start (args, format);
-    send_message("fail", format, args);
-    va_end (args);
+    fault_init(cmb_get_sp());
+    
+    // restart
+    #define AIRCR_Register (*((volatile uint32_t*)(PPB_BASE + 0x0ED0C)))
+    AIRCR_Register = 0x5FA0004;
 }
 
 void pico_logger_panic(const char *parameters, ...)
@@ -229,7 +230,6 @@ void fault_init(uint32_t fault_handler_sp)
 
 void report_saved_crash()
 {
-    trace("report_saved_crash: last boot info, watchdog: %d/%d, last_command: 0x%x, cur_depth: %d", watchdog_caused_reboot(), watchdog_enable_caused_reboot(), last_command, cur_depth);
     if (last_command != MAGIC_CALLSTACK)
     {
         last_command = 0;
@@ -242,6 +242,7 @@ void report_saved_crash()
         return;
     }
 
+    trace("report_saved_crash: last boot info, watchdog: %d/%d, last_command: 0x%x, cur_depth: %d", watchdog_caused_reboot(), watchdog_enable_caused_reboot(), last_command, cur_depth);
     cm_print_call_stack(call_stack_buf, cur_depth);
 }
     
