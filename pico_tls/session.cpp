@@ -52,7 +52,7 @@ int Session::NUM_SESSIONS = 0;
 Session::Session(void *arg, bool tls)
     : m_connected(arg != NULL)
     , m_closing(false)
-    , m_sending(false)
+    , m_processing(false)
     , m_tls(tls)
     , m_sentBytes(0)
     , m_port(0)
@@ -127,7 +127,7 @@ err_t Session::send(const u8_t *data, size_t len)
     }
 
     // prevent partial write notifications back to caller
-    m_sending = true;
+    m_processing = true;
 
     // if len exceeds MBEDTLS_SSL_OUT_CONTENT_LEN then it will quietly fail in "altcp_tls_mbedtls.c" / "altcp_mbedtls_write"
     while (len > 0)
@@ -151,7 +151,7 @@ err_t Session::send(const u8_t *data, size_t len)
         return err;
     }
 
-    m_sending = false;
+    m_processing = false;
     
     if (m_sentBytes > 0)
     {
@@ -165,13 +165,13 @@ err_t Session::check_send_failure(err_t err)
 {
     if (err != ERR_OK)
     {
-        m_sending = false;
+        m_processing = false;
         return err;
     }
     
     if (m_closing || m_pcb == NULL)
     {
-        m_sending = false;
+        m_processing = false;
         if (m_callback)
         {
             m_callback->on_closed();
@@ -204,7 +204,7 @@ err_t Session::lwip_sent(void *arg, struct altcp_pcb *pcb, u16_t len)
 
     Session *self = ((Session *)arg);
     
-    if (self->m_sending)
+    if (self->m_processing)
     {
         self->m_sentBytes += len;
     }
@@ -227,7 +227,7 @@ err_t Session::lwip_sent(void *arg, struct altcp_pcb *pcb, u16_t len)
 err_t Session::lwip_recv(void *arg, struct altcp_pcb *pcb, struct pbuf *p, err_t err)
 {
     Session *self = (Session *)arg;
-    trace("Session::lwip_recv: this=%p, pcb=%p, m_pcb=%p, pbuf=%p, data=%p, len=%d, err=%s\n", arg, pcb, (self != NULL ? self->m_pcb : NULL), p, (p != NULL ? p->payload : NULL), (p != NULL ? p->len : 0), lwip_strerr(err));
+    trace("Session::lwip_recv: this=%p, pcb=%p, m_pcb=%p, pbuf=%p, data=%p, len=%d, tot_len=%d, ref=%d, next=%p, err=%s\n", arg, pcb, (self != NULL ? self->m_pcb : NULL), p, (p != NULL ? p->payload : NULL), (p != NULL ? p->len : 0), (p != NULL ? p->tot_len : 0), (p != NULL ? p->ref : 0), (p != NULL ? p->next : 0), lwip_strerr(err));
 
     if (err == ERR_ABRT)
     {
@@ -250,12 +250,30 @@ err_t Session::lwip_recv(void *arg, struct altcp_pcb *pcb, struct pbuf *p, err_t
 
     if (self->m_callback)
     {
-        if (!self->m_callback->on_recv((u8_t *)p->payload, p->len))
+        self->m_processing = true;
+        for (struct pbuf *it = p; it != NULL; it = it->next)
         {
-            altcp_recved(pcb, p->tot_len);
-            self->close();
-            return ERR_ABRT;
+            bool recvStatus = self->m_callback->on_recv((u8_t *)it->payload, it->len);
+
+            if (self->m_closing || self->m_pcb == NULL)
+            {
+                self->m_processing = false;
+                if (self->m_callback)
+                {
+                    self->m_callback->on_closed();
+                }
+                return ERR_ABRT;
+            }
+            
+            if (!recvStatus)
+            {
+                self->m_processing = false;
+                altcp_recved(pcb, p->tot_len);
+                self->close();
+                return ERR_ABRT;
+            }
         }
+        self->m_processing = false;
     }
 
     altcp_recved(pcb, p->tot_len);
@@ -297,7 +315,7 @@ err_t Session::close()
 
     if (m_pcb == NULL)
     {
-        if (!m_sending && m_callback)
+        if (!m_processing && m_callback)
         {
             m_callback->on_closed();
         }
@@ -314,7 +332,7 @@ err_t Session::close()
     trace("Session::close: this=%p, m_pcb=%p\n", this, (void *)m_pcb);
     m_pcb = NULL;
 
-    if (!m_sending && m_callback)
+    if (!m_processing && m_callback)
     {
         m_callback->on_closed();
     }
@@ -374,7 +392,7 @@ err_t Session::connect(const char *host, const ip_addr_t *ipaddr, u16_t port)
         if (TLS_CLIENT_CONFIG == NULL)
         {
             trace("Session::connect: this=%p host=%s, ip=%p, port=%d, tls client config was not created.\n", this, safestr(host), ipaddr ? ipaddr->addr : 0, port);
-            return ERR_VAL;
+            return close();
         }
         
         m_pcb = (struct altcp_pcb *)altcp_tls_new(TLS_CLIENT_CONFIG, IPADDR_TYPE_ANY);

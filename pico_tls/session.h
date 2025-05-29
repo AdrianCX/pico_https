@@ -115,7 +115,7 @@ private:
 
     bool m_connected;
     bool m_closing;
-    bool m_sending;
+    bool m_processing;
     bool m_tls;
     u16_t m_sentBytes;
     u16_t m_port;

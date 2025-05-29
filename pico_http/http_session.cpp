@@ -141,10 +141,13 @@ bool HTTPSession::sendHttpReply(const char *extra_headers, const char *body, int
         return false;
     }
 
-    err = m_session->send((u8_t*)body, body_len);
-    if (err != ERR_OK) {
-        trace("HTTPSession::sendReply: this=%p, failed sending body[%p], error[%d] body_len[%d]\n", this, body, err, body_len);
-        return false;
+    if (body != NULL)
+    {
+        err = m_session->send((u8_t*)body, body_len);
+        if (err != ERR_OK) {
+            trace("HTTPSession::sendReply: this=%p, failed sending body[%p], error[%d] body_len[%d]\n", this, body, err, body_len);
+            return false;
+        }
     }
 
     return true;
