@@ -53,6 +53,7 @@ class WebSocketInterface
 public:
     virtual bool onWebSocketData(uint8_t *data, size_t len) = 0;
     virtual bool onWebsocketEncodedData(const uint8_t *data, size_t len) = 0;
+    virtual bool onFinishedPacket() { return true; }
 };
 
 class WebSocketHandler

@@ -268,9 +268,16 @@ err_t Session::lwip_recv(void *arg, struct altcp_pcb *pcb, struct pbuf *p, err_t
             if (!recvStatus)
             {
                 self->m_processing = false;
+                
                 altcp_recved(pcb, p->tot_len);
-                self->close();
-                return ERR_ABRT;
+                pbuf_free(p);
+                
+                return self->close();
+            }
+
+            if (it->tot_len == it->len)
+            {
+                break;
             }
         }
         self->m_processing = false;

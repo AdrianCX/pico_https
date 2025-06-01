@@ -120,6 +120,10 @@ bool WebSocketHandler::decodeData(uint8_t* data, size_t len, WebSocketInterface 
                 if (m_webSocketDataIndex == m_webSocketDataLen)
                 {
                     m_state = WebSocketState::WAIT_PACKET;
+                    if (!callback->onFinishedPacket())
+                    {
+                        return false;
+                    }
                 }
             }
             else

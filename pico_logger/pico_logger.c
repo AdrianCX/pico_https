@@ -155,13 +155,16 @@ static void send_message(const char *category, const char *format, va_list args)
     }
 
     struct pbuf *p = pbuf_alloc( PBUF_TRANSPORT, size, PBUF_RAM);
-    memcpy(p->payload, buffer, size);
+    if (p != NULL)
+    {
+        memcpy(p->payload, buffer, size);
     
-    err_t err = udp_send(&upstream_pcb, p);
-    if (err != ERR_OK) {
-        printf("Failed to send UDP packet! error=%d", err);
+        err_t err = udp_send(&upstream_pcb, p);
+        if (err != ERR_OK) {
+            printf("Failed to send UDP packet! error=%d", err);
+        }
+        pbuf_free(p);
     }
-    pbuf_free(p);
 }
 
 void trace(const char *format, ...)
