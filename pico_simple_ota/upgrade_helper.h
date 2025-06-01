@@ -42,25 +42,26 @@ SOFTWARE.
 
 class UpgradeHelper
 {
+    UpgradeHelper();
 public:
+    static UpgradeHelper *create();
+    
     bool clear();
     void upgrade();
-
     bool storeData(u8_t *data, size_t len);
-    static void writeToFlash(void *self);
-
-    inline void setRegionErased(uint32_t region) { m_regionErased[region/8] |= (1 << (region % 8)); }
-    inline bool getRegionErased(uint32_t region) { return (m_regionErased[region/8] & (1 << (region % 8))) != 0; }
 
     static const int NUM_REGIONS = MAX_BINARY_SIZE / FLASH_SECTOR_SIZE;
 
     uint8_t *getRegions() { return &m_regionErased[0]; }
     
 private:
-    uint16_t m_index = 0;
+    static void writeToFlash(void *self);
+    inline void setRegionErased(uint32_t region) { m_regionErased[region/8] |= (1 << (region % 8)); }
+    inline bool getRegionErased(uint32_t region) { return (m_regionErased[region/8] & (1 << (region % 8))) != 0; }
 
     static const int BLOCK_SIZE = 512;
     uint8_t m_buffer[BLOCK_SIZE] = {};
 
     uint8_t m_regionErased[NUM_REGIONS/8] = {};
+    uint32_t m_index = 0;
 };

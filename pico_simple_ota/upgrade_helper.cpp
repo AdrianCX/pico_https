@@ -23,39 +23,54 @@ SOFTWARE.
 */
 #include <string.h>
 #include <time.h>
-
 #include "hardware/flash.h"
+#include "hardware/sync.h"
 #include "hardware/xip_cache.h"
 #include "pico/bootrom.h"
 #include "pico/cyw43_arch.h"
 #include "pico/flash.h"
 #include "pico/stdlib.h"
-
 #include "pico_logger.h"
 #include "uf2.h"
 
 #include "upgrade_helper.h"
 
 #define FLASH_BLOCK_ERASE_CMD 0xd8
+#define XIP_ENTRY_SIZE 64
 
 static void __no_inline_not_in_flash_func(upgrade_binary)(void *param)
 {
-  save_and_disable_interrupts();
-  uint8_t buffer[FLASH_SECTOR_SIZE];
+  uint8_t *buffer = new (std::align_val_t(32)) uint8_t[FLASH_SECTOR_SIZE];
 
+  
+#if PICO_RP2040
+  uint32_t xip[XIP_ENTRY_SIZE];
+  for (size_t i = 0; i < XIP_ENTRY_SIZE; i++)
+  {
+      xip[i] = ((uint32_t *) (XIP_BASE))[i];
+  }
+#endif
+  
   UpgradeHelper *upgradeHelper = (UpgradeHelper *)param;
   uint8_t *regionErased = upgradeHelper->getRegions();
 
   // From this point on, only ROM functions are called, execution is from RAM.
+  // Need to re-enable XIP every time we want to read anything on RP2040
+  save_and_disable_interrupts();
+
   rom_connect_internal_flash_fn flash_connect_internal_func = (rom_connect_internal_flash_fn) rom_func_lookup(ROM_FUNC_CONNECT_INTERNAL_FLASH);
   rom_flash_exit_xip_fn flash_exit_xip_func = (rom_flash_exit_xip_fn) rom_func_lookup(ROM_FUNC_FLASH_EXIT_XIP);
   rom_flash_flush_cache_fn flash_flush_cache_func = (rom_flash_flush_cache_fn) rom_func_lookup(ROM_FUNC_FLASH_FLUSH_CACHE);
   rom_flash_range_program_fn flash_range_program_func = (rom_flash_range_program_fn)rom_func_lookup_inline(ROM_FUNC_FLASH_RANGE_PROGRAM);
   rom_flash_range_erase_fn flash_range_erase_func = (rom_flash_range_erase_fn)rom_func_lookup_inline(ROM_FUNC_FLASH_RANGE_ERASE);
 
+  // Exit XIP - same order as documented in pico/bootrom.h
+  flash_flush_cache_func();
   __compiler_memory_barrier();
   flash_connect_internal_func();
   flash_exit_xip_func();
+
+  // Erase all regions we need to clear, make it easy to spot where flashing failed in picotool
   for (uint32_t i=0; i<UpgradeHelper::NUM_REGIONS;i++)
   {
       if ((regionErased[i/8] & (1 << (i % 8))) != 0)
@@ -64,24 +79,40 @@ static void __no_inline_not_in_flash_func(upgrade_binary)(void *param)
           flash_range_erase_func(offset, FLASH_SECTOR_SIZE, FLASH_BLOCK_SIZE, FLASH_BLOCK_ERASE_CMD);
       }
   }
-  __compiler_memory_barrier();
 
+  // Write the new data
   for (uint32_t i=0; i<UpgradeHelper::NUM_REGIONS;i++)
   {
       if ((regionErased[i/8] & (1 << (i % 8))) != 0)
       {
+#if PICO_RP2040
+          __compiler_memory_barrier();
+
+          // Need to re-enter XIP so we can read the sector on RP2040
+          flash_flush_cache_func();
+          ((void (*)(void))((intptr_t) xip + 1))();
+#endif
+          __compiler_memory_barrier();
+
+          // fetch sector data
           uint32_t offset = i * FLASH_SECTOR_SIZE;
-          const uint8_t *flash_target_contents = (const uint8_t *) (XIP_BASE + offset + OTA_FLASH_BUFFER_OFFSET);
+          volatile uint8_t *flash_target_contents = (volatile uint8_t *) (XIP_BASE + OTA_FLASH_BUFFER_OFFSET + offset);
           for (uint32_t j=0;j<FLASH_SECTOR_SIZE;++j)
           {
               buffer[j] = flash_target_contents[j];
           }
-          
           __compiler_memory_barrier();
+          
+#if PICO_RP2040
+          // Exit XIP the same as documented in pico/bootrom.h and write the sector
+          flash_flush_cache_func();
+          __compiler_memory_barrier();
+          flash_connect_internal_func();
+          flash_exit_xip_func();
+#endif
           flash_range_program_func(offset, &buffer[0], FLASH_SECTOR_SIZE);
       }
   }
-  flash_flush_cache_func();
   __compiler_memory_barrier();
   
   while (true)
@@ -89,6 +120,16 @@ static void __no_inline_not_in_flash_func(upgrade_binary)(void *param)
       #define AIRCR_Register (*((volatile uint32_t*)(PPB_BASE + 0x0ED0C)))
       AIRCR_Register = 0x5FA0004;
   }
+}
+
+UpgradeHelper *UpgradeHelper::create()
+{
+    return new (std::align_val_t(32)) UpgradeHelper();
+}
+
+UpgradeHelper::UpgradeHelper()
+{
+    clear();
 }
 
 bool UpgradeHelper::clear()
@@ -101,6 +142,7 @@ bool UpgradeHelper::clear()
 
 bool UpgradeHelper::storeData(u8_t *data, size_t len)
 {
+    trace("UpgradeHelper::storeData: this=%p data=%p len=%d.\n", this, data, len);
     while (len > 0)
     {
         size_t available = (BLOCK_SIZE - m_index);
@@ -158,6 +200,12 @@ bool UpgradeHelper::storeData(u8_t *data, size_t len)
                 return false;
             }
 
+            if ((((uint32_t)(&block->data[0])) % 32) != 0)
+            {
+                trace("UpgradeHelper::storeData: this=%p targetAddr[0x%x] flags[0x%x] payloadSize[%d] blockNo[%d] numBlocks[%d] magicEnd[0x%x] software failure, m_buffer must be 32 byte aligned, address[%p].\n", this, block->targetAddr, block->flags, block->payloadSize, block->blockNo, block->numBlocks, block->magicEnd, &block->data[0]);
+                return false;
+            }
+
             uint32_t region = (block->targetAddr - OTA_FLASH_BUFFER_OFFSET) / FLASH_SECTOR_SIZE;
             uint32_t offset = block->targetAddr - (block->targetAddr % FLASH_SECTOR_SIZE);
             if (region >= NUM_REGIONS)
@@ -185,6 +233,7 @@ bool UpgradeHelper::storeData(u8_t *data, size_t len)
         }
         else if (m_index > BLOCK_SIZE)
         {
+            trace("UpgradeHelper::storeData: this=%p software error, m_index[%d] larger then BLOCK_SIZE[%d].\n", this, m_index, BLOCK_SIZE);
             return false;
         }
     }
