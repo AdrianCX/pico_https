@@ -100,7 +100,8 @@ public:
 
     bool send_connect(bool clean_session, uint8_t keepalive_seconds, const char *id = NULL, const char *will_topic = NULL, const char *will_message = NULL, const char *user = NULL, const char *pass = NULL);
     bool send_subscribe(const char *topic);
-    bool send_publish_header(const char *topic, uint32_t message_length);
+     
+    bool send_publish_header(const char *topic, uint32_t message_length, uint16_t *out_message_id = NULL);
     bool send_publish_data(uint8_t *data, size_t len);
 
     bool send_ping();

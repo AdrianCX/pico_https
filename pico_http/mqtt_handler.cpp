@@ -33,7 +33,7 @@ extern "C" const char *safestr(const char *value);
 
 bool MQTTSocketHandler::on_recv(u8_t *data, size_t len)
 {
-    trace("MQTTSocketHandler::on_recv: data[%p], len[%d].", data, len);
+    //trace("MQTTSocketHandler::on_recv: data[%p], len[%d].", data, len);
     return decode_data(data, len);
 }
 
@@ -207,8 +207,7 @@ bool MQTTSocketHandler::decode_data(uint8_t* data, size_t len)
             //trace("MQTTSocketHandler::decode_data: received data this[%p] len[%d] m_pendingDataLen[%d].", this, len, m_pendingDataLen);
             
             uint32_t bytesReceived = len < m_pendingDataLen ? len : m_pendingDataLen;
-            
-            m_upstream->on_publish_data(data, bytesReceived, (len == m_pendingDataLen));
+            m_upstream->on_publish_data(data, bytesReceived, (bytesReceived == m_pendingDataLen));
 
             len -= bytesReceived;
             m_pendingDataLen -= bytesReceived;
@@ -372,7 +371,7 @@ bool MQTTSocketHandler::send_subscribe(const char *topic)
     return m_downstream->send(sendBuffer, pos);
 }
 
-bool MQTTSocketHandler::send_publish_header(const char *topic, uint32_t message_length)
+bool MQTTSocketHandler::send_publish_header(const char *topic, uint32_t message_length, uint16_t *out_message_id)
 {
     if (m_pendingSendDataLen > 0)
     {
@@ -380,7 +379,7 @@ bool MQTTSocketHandler::send_publish_header(const char *topic, uint32_t message_
         return false;
     }
 
-    trace("MQTTSocketHandler::send_publish_header: topic[%s], message_length[%d]", safestr(topic), message_length);
+    trace("MQTTSocketHandler::send_publish_header: topic[%s], message_length[%d] message_id[%d]", safestr(topic), message_length, m_messageId);
     
     const int MQTT_MESSAGE_ID_SIZE = 2;
     const int MQTT_TOPIC_LENGTH_SIZE = 2;
@@ -395,7 +394,7 @@ bool MQTTSocketHandler::send_publish_header(const char *topic, uint32_t message_
 
     if (pos == 0)
     {
-        return -1;
+        return false;
     }
     
     sendBuffer[pos++] = (topic_length >> 8);
@@ -407,6 +406,11 @@ bool MQTTSocketHandler::send_publish_header(const char *topic, uint32_t message_
     sendBuffer[pos++] = m_messageId >> 8;
     sendBuffer[pos++] = m_messageId & 0xFF;
 
+    if (out_message_id != NULL)
+    {
+        *out_message_id = m_messageId;
+    }
+    
     m_pendingSendDataLen = message_length;
 
     m_messageId = (m_messageId == 0xFFFF) ? 1 : (m_messageId + 1);

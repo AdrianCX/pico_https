@@ -45,6 +45,10 @@ extern "C" {
 
 void __attribute__((used,naked)) HardFault_Handler(void);
 
+const char *get_logging_id() {
+    return address;
+}
+    
 static void watchdog_timeout(void) {
     // Clear the alarm irq
     hw_clear_bits(&timer_hw->intr, 1u << ALARM_NUM);

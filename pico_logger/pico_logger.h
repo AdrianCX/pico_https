@@ -20,7 +20,8 @@ void force_restart();
 void report_saved_crash();
 void pico_logger_panic(const char *parameters, ...);
 const char *safestr(const char *value);
-    
+
+const char *get_logging_id();
 #ifdef __cplusplus
 }
 #endif
