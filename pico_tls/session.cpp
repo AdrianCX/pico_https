@@ -21,11 +21,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#ifdef PICO_TLS_DEBUG
 #include "pico_logger.h"
-#else
-#include "pico_nologger.h"
-#endif
 
 #include "session.h"
 
@@ -54,6 +50,7 @@ Session::Session(void *arg, bool tls)
     , m_closing(false)
     , m_processing(false)
     , m_tls(tls)
+    , m_debug(false)
     , m_sentBytes(0)
     , m_port(0)
     , m_callback(NULL)
@@ -115,7 +112,11 @@ u16_t Session::send_buffer_size()
 
 err_t Session::send(const u8_t *data, size_t len)
 {
-    trace("Session::send: this=%p, m_pcb=%p, data=%p, len=%d\n", this, m_pcb, data, len);
+    if (m_debug)
+    {
+        trace("Session::send: this=%p, m_pcb=%p, data=%p, len=%d\n", this, m_pcb, data, len);
+    }
+    
     if (data == NULL)
     {
         return ERR_VAL;
@@ -133,7 +134,11 @@ err_t Session::send(const u8_t *data, size_t len)
     while (len > 0)
     {
         int bytesToSend = (len > MBEDTLS_SSL_OUT_CONTENT_LEN) ? MBEDTLS_SSL_OUT_CONTENT_LEN : len;
-        trace("Session::send: this=%p, m_pcb=%p, data=%p, len=%d bytesToSend=%d\n", this, m_pcb, data, len, bytesToSend);
+        
+        if (m_debug)
+        {
+            trace("Session::send: this=%p, m_pcb=%p, data=%p, len=%d bytesToSend=%d\n", this, m_pcb, data, len, bytesToSend);
+        }
 
         err_t err = altcp_write(m_pcb, data, bytesToSend, TCP_WRITE_FLAG_COPY);
         if (check_send_failure(err) != ERR_OK)
@@ -184,7 +189,11 @@ err_t Session::check_send_failure(err_t err)
 
 err_t Session::flush()
 {
-    trace("Session::flush: this=%p, m_closing=%d, m_pcb=%p\n", this, m_closing, m_pcb);
+    if (m_debug)
+    {
+        trace("Session::flush: this=%p, m_closing=%d, m_pcb=%p\n", this, m_closing, m_pcb);
+    }
+    
     if (m_closing || m_pcb == NULL)
     {
         return ERR_OK;
@@ -195,7 +204,6 @@ err_t Session::flush()
 
 err_t Session::lwip_sent(void *arg, struct altcp_pcb *pcb, u16_t len)
 {
-    trace("Session::lwip_sent: this=%p, m_pcb=%p, len=%d\n", arg, pcb, len);
     if (arg == NULL)
     {
         trace("Session::lwip_sent: ERROR: Invalid lwip_sent with NULL arg\n");
@@ -203,6 +211,11 @@ err_t Session::lwip_sent(void *arg, struct altcp_pcb *pcb, u16_t len)
     }
 
     Session *self = ((Session *)arg);
+
+    if (self->m_debug)
+    {
+        trace("Session::lwip_sent: this=%p, m_pcb=%p, len=%d\n", arg, pcb, len);
+    }
     
     if (self->m_processing)
     {
@@ -227,7 +240,11 @@ err_t Session::lwip_sent(void *arg, struct altcp_pcb *pcb, u16_t len)
 err_t Session::lwip_recv(void *arg, struct altcp_pcb *pcb, struct pbuf *p, err_t err)
 {
     Session *self = (Session *)arg;
-    trace("Session::lwip_recv: this=%p, pcb=%p, m_pcb=%p, pbuf=%p, data=%p, len=%d, tot_len=%d, ref=%d, next=%p, err=%s\n", arg, pcb, (self != NULL ? self->m_pcb : NULL), p, (p != NULL ? p->payload : NULL), (p != NULL ? p->len : 0), (p != NULL ? p->tot_len : 0), (p != NULL ? p->ref : 0), (p != NULL ? p->next : 0), lwip_strerr(err));
+
+    if (self->m_debug)
+    {
+        trace("Session::lwip_recv: this=%p, pcb=%p, m_pcb=%p, pbuf=%p, data=%p, len=%d, tot_len=%d, ref=%d, next=%p, err=%s\n", arg, pcb, (self != NULL ? self->m_pcb : NULL), p, (p != NULL ? p->payload : NULL), (p != NULL ? p->len : 0), (p != NULL ? p->tot_len : 0), (p != NULL ? p->ref : 0), (p != NULL ? p->next : 0), lwip_strerr(err));
+    }
 
     if (err == ERR_ABRT)
     {
@@ -310,7 +327,10 @@ void Session::lwip_err(void *arg, err_t err)
 
 err_t Session::close()
 {
-    trace("Session::close: this=%p, m_pcb=%p, m_closing=%d\n", this, (void *)m_pcb, m_closing);
+    if (m_debug)
+    {
+        trace("Session::close: this=%p, m_pcb=%p, m_closing=%d\n", this, (void *)m_pcb, m_closing);
+    }
     
     if (m_closing)
     {
@@ -336,7 +356,6 @@ err_t Session::close()
 
     altcp_abort(m_pcb);
     
-    trace("Session::close: this=%p, m_pcb=%p\n", this, (void *)m_pcb);
     m_pcb = NULL;
 
     if (!m_processing && m_callback)
@@ -349,7 +368,10 @@ err_t Session::close()
 
 err_t Session::connect(const char *host, u16_t port)
 {
-    trace("Session::connect: this=%p host=%s, port=%d\n", this, safestr(host), port);
+    if (m_debug)
+    {
+        trace("Session::connect: this=%p host=%s, port=%d\n", this, safestr(host), port);
+    }
 
     m_port = port;
     
@@ -370,9 +392,12 @@ err_t Session::connect(const char *host, u16_t port)
 
 void Session::dns_callback(const char* host, const ip_addr_t *ipaddr, void *arg)
 {
-    trace("Session::dns_callback: this=%p host=%s, ip=%p\n", arg, safestr(host), ipaddr);
-    
     Session *self = (Session *)arg;
+
+    if (self->m_debug)
+    {
+        trace("Session::dns_callback: this=%p host=%s, ip=%p\n", arg, safestr(host), ipaddr);
+    }
     
     if (!ipaddr)
     {
@@ -380,6 +405,8 @@ void Session::dns_callback(const char* host, const ip_addr_t *ipaddr, void *arg)
         {
             self->m_callback->on_closed();
         }
+
+        trace("Session::dns_callback: this=%p host=%s, ip=%p, error looking up address. \n", arg, safestr(host), ipaddr);
         return;
     }
 
@@ -388,7 +415,10 @@ void Session::dns_callback(const char* host, const ip_addr_t *ipaddr, void *arg)
 
 err_t Session::connect(const char *host, const ip_addr_t *ipaddr, u16_t port)
 {
-    trace("Session::connect: this=%p host=%s, ip=%p, port=%d\n", this, safestr(host), ipaddr ? ipaddr->addr : 0, port);
+    if (m_debug)
+    {
+        trace("Session::connect: this=%p host=%s, ip=%p, port=%d\n", this, safestr(host), ipaddr ? ipaddr->addr : 0, port);
+    }
 
     if (!m_tls)
     {
@@ -425,9 +455,12 @@ err_t Session::connect(const char *host, const ip_addr_t *ipaddr, u16_t port)
 
 err_t Session::lwip_connected(void *arg, struct altcp_pcb *pcb, err_t err)
 {
-    trace("Session::lwip_connected: this=%p, m_pcb=%p, ipaddr=%x, err=%d\n", arg, pcb, err);
-    
     Session *self = (Session *)arg;
+    if (self->m_debug)
+    {
+        trace("Session::lwip_connected: this=%p, m_pcb=%p, ipaddr=%x, err=%d\n", arg, pcb, err);
+    }
+    
     if (err != ERR_OK)
     {
         return self->close();

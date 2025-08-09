@@ -86,6 +86,7 @@ public:
     virtual ~Session();
 
     void set_tls(bool tls) { m_tls = tls; }
+    void set_debug(bool debug) { m_debug = debug; }
     
     // ISender
     virtual err_t connect(const char *host, u16_t port) override;
@@ -117,6 +118,7 @@ private:
     bool m_closing;
     bool m_processing;
     bool m_tls;
+    bool m_debug;
     u16_t m_sentBytes;
     u16_t m_port;
     
