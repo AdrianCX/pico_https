@@ -22,7 +22,19 @@ SOFTWARE.
 */
 #pragma once
 
-#include "session.h"
+#include "http_session.h"
+
+
+class IHttpCallback
+{
+public:
+    virtual ~IHttpCallback() {};
+    
+    virtual bool onHeaderReceived(HTTPHeader& header) { return true; };
+    virtual bool onHttpData(u8_t *data, size_t len) { return true; }
+    
+    virtual void onRequestDestroyed() {};
+};
 
 ///
 /// Basic example HTTP(S) request handler, future functionality pending.
@@ -44,7 +56,9 @@ public:
     void setDebug(bool debug);
 
     bool send();
-    
+
+    void setHttpCallback(IHttpCallback *callback) { m_callback = callback; }
+
 protected:
     virtual bool on_sent(u16_t len) override { return true; };
     virtual bool on_recv(u8_t *data, size_t len) override;
@@ -54,14 +68,17 @@ protected:
 private:
     virtual ~HTTPRequest();
     
-    char *m_host = NULL;
-    uint16_t m_port = 443;
+    HTTPSessionState m_state;
 
+    uint16_t m_port = 443;
+    uint16_t m_headerStart = 0;
     uint16_t m_headerIndex = 0;
+    
     char m_header[MAX_HEADER_SIZE+2];
 
     u8_t  *m_body = NULL;
     size_t m_bodyLen = 0;
-    
+
+    IHttpCallback *m_callback = NULL;
     Session m_connection;
 };

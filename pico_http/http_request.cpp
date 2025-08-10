@@ -29,18 +29,45 @@ SOFTWARE.
 
 HTTPRequest::HTTPRequest(const char *host, uint16_t port, bool tls, const char *command, const char *path)
 {
-    trace("HTTPRequest::HTTPRequest: this=%p, host=%s, port=%d, tls=%d, command=%s, path=%s", this, host, port, tls, command, path);
+    trace("HTTPRequest::HTTPRequest: this=%p, host=%s, port=%d, tls=%d, command=%s, path=%s", this, safestr(host), port, tls, safestr(command), safestr(path));
     
     m_connection.set_callback(this);
     m_connection.set_tls(tls);
 
-    if (host != NULL)
+    if ((host == NULL) || (command == NULL) || (path == NULL) || (port == 0))
     {
-        m_host = strdup(host);
-        m_port = port;
-        
-        m_headerIndex = snprintf(m_header, MAX_HEADER_SIZE, "%s %s HTTP/1.1\r\nHost: %s:%d\r\n", command, path, host, port);
+        trace("HTTPRequest::HTTPRequest: this=%p, host=%s, port=%d, tls=%d, command=%s, path=%s, error: bad parameters", this, safestr(host), port, tls, safestr(command), safestr(path));
+
+        m_state = FAIL;
+        return;
     }
+
+    // first part of the buffer is the host
+    m_headerIndex = snprintf(m_header, MAX_HEADER_SIZE, "%s", host);
+    if ((m_headerIndex >= MAX_HEADER_SIZE-2) || (m_headerIndex < 0))
+    {
+        trace("HTTPRequest::HTTPRequest: this=%p, host=%s, port=%d, tls=%d, command=%s, path=%s, error: host is larger then buffer", this, host, port, tls, command, path);
+        m_state = FAIL;
+        return;
+    }
+
+    ++m_headerIndex;
+
+    m_headerStart = m_headerIndex;
+    m_port = port;
+    
+    int written = snprintf(&m_header[m_headerIndex], MAX_HEADER_SIZE-m_headerIndex, "%s %s HTTP/1.1\r\nHost: %s:%d\r\n", command, path, host, port);
+
+    if ((m_headerIndex + written >= MAX_HEADER_SIZE-2) || (written < 0))
+    {
+        trace("HTTPRequest::HTTPRequest: this=%p, host=%s, port=%d, tls=%d, command=%s, path=%s, failure writing to buffer: %d", this, host, port, tls, command, path, written);
+
+        m_headerIndex = MAX_HEADER_SIZE;
+        m_state = FAIL;
+        return;
+    }
+
+    m_headerIndex += written;
 }
 
 HTTPRequest::~HTTPRequest()
@@ -50,38 +77,60 @@ HTTPRequest::~HTTPRequest()
     if (m_body != NULL)
     {
         free(m_body);
+        m_body = NULL;
     }
 
-    if (m_host != NULL)
+    if (m_callback != NULL)
     {
-        free(m_host);
+        m_callback->onRequestDestroyed();
+        m_callback = NULL;
     }
 }
 
 bool HTTPRequest::addHeader(const char *header, const char* value)
 {
+    if (m_state == FAIL)
+    {
+        trace("HTTPRequest::addHeader: this=%p, request already failed.", this);
+        return false;
+    }
+
     if (m_headerIndex >= MAX_HEADER_SIZE)
     {
         trace("HTTPRequest::addHeader: this=%p, not enough room, increase MAX_HEADER_SIZE", this);
         return false;
     }
 
-    m_headerIndex += snprintf(&m_header[m_headerIndex], MAX_HEADER_SIZE-m_headerIndex, "%s: %s\r\n", header, value);
-    
-    return (m_headerIndex < MAX_HEADER_SIZE);
+    int written = snprintf(&m_header[m_headerIndex], MAX_HEADER_SIZE-m_headerIndex, "%s: %s\r\n", header, value);
+    if ((m_headerIndex + written >= MAX_HEADER_SIZE) || (written < 0))
+    {
+        trace("HTTPRequest::addHeader: this=%p, header=%s, value=%s failure writing to buffer: %d", this, header, value, written);
+        m_headerIndex = MAX_HEADER_SIZE;
+
+        return false;
+    }
+
+    m_headerIndex += written;
+    return true;
 }
 
 bool HTTPRequest::setBody(u8_t *data, size_t len)
 {
+    if (m_state == FAIL)
+    {
+        trace("HTTPRequest::addHeader: this=%p, request already failed.", this);
+        return false;
+    }
+
     if (m_headerIndex >= MAX_HEADER_SIZE)
     {
-        trace("HTTPRequest::addHeader: this=%p, not enough room, increase MAX_HEADER_SIZE", this);
+        trace("HTTPRequest::setBody: this=%p, not enough room, increase MAX_HEADER_SIZE", this);
         return false;
     }
 
     if (m_body != NULL)
     {
-        trace("HTTPRequest::addHeader: this=%p, body was already set.", this);
+        trace("HTTPRequest::setBody: this=%p, body was already set.", this);
         return false;
     }
 
@@ -89,9 +138,17 @@ bool HTTPRequest::setBody(u8_t *data, size_t len)
     m_body = (u8_t *)malloc(len);
     memcpy(m_body, data, len);
     
-    m_headerIndex += snprintf(&m_header[m_headerIndex], MAX_HEADER_SIZE-m_headerIndex, "Content-Length: %d\r\n", len);
-    
-    return (m_headerIndex < MAX_HEADER_SIZE);
+    int written = snprintf(&m_header[m_headerIndex], MAX_HEADER_SIZE-m_headerIndex, "Content-Length: %d\r\n", len);
+
+    if ((m_headerIndex + written >= MAX_HEADER_SIZE) || (written < 0))
+    {
+        trace("HTTPRequest::setBody: this=%p, failure writing content-length to buffer: %d", this, written);
+        m_headerIndex = MAX_HEADER_SIZE;
+        return false;
+    }
+
+    m_headerIndex += written;
+    return true;
 }
 
 void HTTPRequest::setDebug(bool debug)
@@ -101,16 +158,24 @@ void HTTPRequest::setDebug(bool debug)
 
 bool HTTPRequest::send()
 {
-    trace("HTTPRequest::send: this=%p, m_host=%s, m_port=%d", this, safestr(m_host), m_port);
-    
-    if (m_host == NULL || m_port == 0)
+    trace("HTTPRequest::send: this=%p, m_host=%s, m_port=%d", this, m_header, m_port);
+
+    if (m_state == FAIL)
     {
+        trace("HTTPRequest::send: this=%p, request already failed.", this);
+        return false;
+    }
+    
+    if (m_port == 0)
+    {
+        trace("HTTPRequest::send: this=%p, bad parameters.", this);
         return false;
     }
 
+
     if (m_headerIndex >= MAX_HEADER_SIZE-3)
     {
-        trace("HTTPRequest::addHeader: this=%p, not enough room for header, increase MAX_HEADER_SIZE", this);
+        trace("HTTPRequest::send: this=%p, not enough room for header, increase MAX_HEADER_SIZE", this);
         return false;
     }
 
@@ -118,11 +183,11 @@ bool HTTPRequest::send()
     m_header[m_headerIndex++]='\n';
     m_header[m_headerIndex++]=0;
 
-    err_t err = m_connection.connect(m_host, m_port);
+    err_t err = m_connection.connect(m_header, m_port);
 
     if (err != ERR_OK)
     {
-        trace("HTTPRequest::send: this=%p, m_host=%s, m_port=%d, error=%d", this, safestr(m_host), m_port, err);
+        trace("HTTPRequest::send: this=%p, m_host=%s, m_port=%d, error=%d", this, m_header, m_port, err);
         return false;
     }
 
@@ -131,9 +196,9 @@ bool HTTPRequest::send()
 
 void HTTPRequest::on_connected()
 {
-    trace("HTTPRequest::on_connected: this=%p, header=%s, body=[%.*s] bodyLen=%d", this, m_header, m_bodyLen, m_body, m_bodyLen);
+    trace("HTTPRequest::on_connected: this=%p, host=%s, header=%s, body=[%.*s] bodyLen=%d", this, m_header, &m_header[m_headerStart], m_bodyLen, m_body, m_bodyLen);
     
-    m_connection.send((const u8_t*)m_header, m_headerIndex-1);
+    m_connection.send((const u8_t*)&m_header[m_headerStart], m_headerIndex-m_headerStart-1);
 
     if (m_body != NULL && m_bodyLen > 0)
     {
@@ -143,7 +208,46 @@ void HTTPRequest::on_connected()
 
 bool HTTPRequest::on_recv(u8_t *data, size_t len)
 {
-    trace("HTTPRequest::on_recv: this=%p, len=%d, data=[%.*s]", this, len, len, data);
+    switch (m_state)
+    {
+        case INIT:
+        {
+            HTTPHeader header;
+            if (!header.parse((char *)data, len))
+            {
+                return false;
+            }
+            
+            m_state = HEADER_RECEIVED;
+            if (m_callback != NULL && !m_callback->onHeaderReceived(header))
+            {
+                return false;
+            }
+
+            data += header.getHeaderSize();
+            len -= header.getHeaderSize();
+            
+            if ((len > 0) && (m_callback != NULL) && (!m_callback->onHttpData(data,len)))
+            {
+                return false;
+            }
+
+            return true;
+        }
+        case HEADER_RECEIVED:
+        {
+            return ((m_callback == NULL) || (m_callback->onHttpData(data, len)));
+        }
+        case WEBSOCKET_ESTABLISHED:
+        {
+            // future functionality
+            return true;
+        }
+        case FAIL:
+        {
+            return false;
+        }
+    }
     return true;
 }
 
