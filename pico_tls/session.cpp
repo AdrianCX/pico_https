@@ -373,6 +373,10 @@ err_t Session::connect(const char *host, u16_t port)
         trace("Session::connect: this=%p host=%s, port=%d\n", this, safestr(host), port);
     }
 
+    m_closing = false;
+    m_connected = false;
+    m_sentBytes = 0;
+    
     m_port = port;
     
     ip_addr_t target_ip;
@@ -458,7 +462,7 @@ err_t Session::lwip_connected(void *arg, struct altcp_pcb *pcb, err_t err)
     Session *self = (Session *)arg;
     if (self->m_debug)
     {
-        trace("Session::lwip_connected: this=%p, m_pcb=%p, ipaddr=%x, err=%d\n", arg, pcb, err);
+        trace("Session::lwip_connected: this=%p, m_pcb=%p, err=%d, callback=%p\n", arg, pcb, err, self->m_callback);
     }
     
     if (err != ERR_OK)
