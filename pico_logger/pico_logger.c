@@ -235,6 +235,11 @@ void fault_init(uint32_t fault_handler_sp)
     cur_depth = cm_backtrace_call_stack(call_stack_buf, CMB_CALL_STACK_MAX_DEPTH, fault_handler_sp);
 }
 
+void clear_saved_crash()
+{
+    last_command = 0;
+}
+
 void report_saved_crash()
 {
     if (last_command != MAGIC_CALLSTACK)

@@ -19,8 +19,10 @@ add_executable(
   pico_http_test
   pico_http_test.cpp
   pico_websocket_test.cpp
+  pico_simple_mqtt_test.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../pico_http/http_header.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../pico_http/websocket_handler.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/../pico_simple_mqtt/mqtt_handler.cpp
 )
 
 set(CMAKE_CXX_FLAGS  "-g")

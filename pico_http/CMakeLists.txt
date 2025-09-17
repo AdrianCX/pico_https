@@ -3,7 +3,6 @@ target_sources(pico_http INTERFACE
   ${CMAKE_CURRENT_SOURCE_DIR}/http_session.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/http_header.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/websocket_handler.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/mqtt_handler.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/http_request.cpp
   )
 

@@ -25,6 +25,7 @@ SOFTWARE.
 
 #include "pico/cyw43_arch.h"
 #include "lwip/altcp_tcp.h"
+#include "isession_callback.h"
 
 // Values for lwip err_t 
 //
@@ -50,30 +51,6 @@ extern altcp_allocator_t tcp_allocator;
 
 typedef void (session_factory_t)(void *arg, bool tls);
 
-class ISessionCallback
-{
-public:
-    virtual ~ISessionCallback() {};
-    
-    virtual bool on_sent(u16_t len) { return true; }
-    virtual bool on_recv(u8_t *data, size_t len) { return true; }
-    virtual void on_closed() {};
-    virtual void on_connected() {};
-};
-
-class ISessionSender
-{
-public:
-    virtual ~ISessionSender() {};
-    
-    virtual err_t connect(const char *host, u16_t port) = 0;
-    virtual err_t connect(const char *host, const ip_addr_t *ipaddr, u16_t port) = 0;
-    virtual err_t send(const u8_t *data, size_t len) = 0;
-    virtual err_t flush() = 0;
-    virtual err_t close() = 0;
-    virtual u16_t send_buffer_size() = 0;
-    virtual bool is_connected() = 0;
-};
 
 // Can be either TLS or regular TCP, abstracted away by altcp.
 class Session

@@ -18,6 +18,7 @@ void trace_stack();
 void fault_init(uint32_t fault_handler_sp);
 void force_restart();
 void report_saved_crash();
+void clear_saved_crash();
 void pico_logger_panic(const char *parameters, ...);
 const char *safestr(const char *value);
 

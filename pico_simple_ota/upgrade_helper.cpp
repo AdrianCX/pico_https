@@ -40,6 +40,9 @@ SOFTWARE.
 
 static void __no_inline_not_in_flash_func(upgrade_binary)(void *param)
 {
+  // new version, no point in printing crash callstack from previous versions
+  clear_saved_crash();
+    
   uint8_t *buffer = new (std::align_val_t(32)) uint8_t[FLASH_SECTOR_SIZE];
 
   
