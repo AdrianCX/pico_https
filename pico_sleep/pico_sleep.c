@@ -26,6 +26,10 @@ SOFTWARE.
 #include "pico/cyw43_arch.h"
 #include "pico/stdio.h"
 #include "pico/sync.h"
+#include "pico_sleep.h"
+
+// Library is RP2350 specific for now
+#ifndef PICO_RP2040
 #include "hardware/gpio.h"
 #include "hardware/powman.h"
 #include "hardware/clocks.h"
@@ -35,7 +39,7 @@ SOFTWARE.
 
 #include "pico_logger.h"
 
-bool pico_deepsleep(uint64_t sleep_time_ms)
+bool pico_deepsleep_init(uint64_t sleep_time_ms)
 {
     set_sys_clock_48mhz(); // run everything from pll_usb pll and stop pll_sys
     cyw43_arch_deinit();
@@ -68,6 +72,17 @@ bool pico_deepsleep(uint64_t sleep_time_ms)
     // Allow power down when debugger connected
     powman_set_debug_power_request_ignored(true);
 
+    uint64_t ms = powman_timer_get_ms();
+    uint64_t abs_time_wake_ms = ms + sleep_time_ms;
+    
+    powman_enable_alarm_wakeup_at_ms(abs_time_wake_ms);
+
+    stdio_flush();
+    return true;
+}
+
+bool pico_deepsleep_execute()
+{    
     // Power states
     powman_power_state P1_7 = POWMAN_POWER_STATE_NONE;
     powman_power_state P0_3 = POWMAN_POWER_STATE_NONE;
@@ -76,13 +91,6 @@ bool pico_deepsleep(uint64_t sleep_time_ms)
 
     powman_power_state off_state = P1_7;
     powman_power_state on_state = P0_3;
-
-    uint64_t ms = powman_timer_get_ms();
-    uint64_t abs_time_wake_ms = ms + sleep_time_ms;
-    
-    powman_enable_alarm_wakeup_at_ms(abs_time_wake_ms);
-
-    stdio_flush();
 
     // Set power states
     bool valid_state = powman_configure_wakeup_state(off_state, on_state);
@@ -106,4 +114,52 @@ bool pico_deepsleep(uint64_t sleep_time_ms)
 
     // Power down
     while (true) __wfi();
+
+    return true;
 }
+
+bool pico_deepsleep(uint64_t sleep_time_ms)
+{
+    if (!pico_deepsleep_init(sleep_time_ms))
+    {
+        return false;
+    }
+    
+    return pico_deepsleep_execute();
+}
+
+void pico_deepsleep_set_gpio(int hw_instance, uint8_t gpio, bool edge, bool high)
+{
+    powman_enable_gpio_wakeup(hw_instance, gpio, edge, high);
+}
+
+bool pico_deepsleep_wake_reason_gpio(uint8_t hw_instance)
+{
+    // pico-sdk - src/rp2350/hardware_regs/include/hardware/regs/powman.h
+
+    // Register    : POWMAN_LAST_SWCORE_PWRUP
+    // Description : Indicates which pwrup source triggered the last switched-core
+    //               power up
+    //               0 = chip reset, for the source of the last reset see
+    //               POWMAN_CHIP_RESET
+    //               1 = pwrup0
+    //               2 = pwrup1
+    //               3 = pwrup2
+    //               4 = pwrup3
+    //               5 = coresight_pwrup
+    //               6 = alarm_pwrup
+    return ((powman_hw->last_swcore_pwrup & (2 << hw_instance)) != 0);
+}
+
+uint8_t pico_deepsleep_wake_reason()
+{
+    return powman_hw->last_swcore_pwrup & 0x7f;
+}
+
+#else
+bool pico_deepsleep_init(uint64_t sleep_time_ms) { return false; }
+void pico_deepsleep_set_gpio(int hw_instance, uint8_t gpio, bool edge, bool high) {}
+bool pico_deepsleep_execute() { return false; }
+bool pico_deepsleep_wake_reason_gpio(uint8_t hw_instance) { return false; }
+bool pico_deepsleep(uint64_t sleep_time_ms) { return false; }
+#endif

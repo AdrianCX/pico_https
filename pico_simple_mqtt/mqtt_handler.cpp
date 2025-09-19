@@ -41,7 +41,6 @@ extern "C" const char *safestr(const char *value);
 
 bool MQTTSocketHandler::on_recv(uint8_t *data, size_t len)
 {
-    //trace("MQTTSocketHandler::on_recv: data[%p], len[%d].", data, len);
     return decode_data(data, len);
 }
 
@@ -57,7 +56,35 @@ void MQTTSocketHandler::on_closed()
 
 void MQTTSocketHandler::on_connected()
 {
+    reset();
     m_upstream->on_connected();
+}
+
+void MQTTSocketHandler::reset()
+{
+    m_pendingPing = false;
+    m_messageId = 1;
+    m_recvBufferIdx = 0;
+    m_state = SocketState::WAIT_PACKET;
+    m_lastKeepaliveUs = to_us_since_boot(get_absolute_time());
+    m_pendingDataLen = 0;
+    m_pendingSendDataLen = 0;
+}
+
+bool MQTTSocketHandler::update(uint64_t now_us)
+{
+    if (m_downstream && m_downstream->is_connected())
+    {
+        uint32_t seconds = (uint32_t)((now_us - m_lastKeepaliveUs)/1000000LL);
+
+        if (seconds > m_keepaliveSeconds)
+        {
+            m_lastKeepaliveUs = to_us_since_boot(get_absolute_time());
+            send_ping();
+        }
+    }
+    
+    return true;
 }
 
 
@@ -77,8 +104,6 @@ bool MQTTSocketHandler::decode_data(uint8_t* data, size_t len)
             }
             case SocketState::WAIT_DATA:
             {
-                //trace("MQTTSocketHandler::decode_data: received data this[%p] len[%d] m_pendingDataLen[%d].", this, len, m_pendingDataLen);
-            
                 uint32_t bytesReceived = len < m_pendingDataLen ? len : m_pendingDataLen;
                 m_upstream->on_publish_data(data, bytesReceived, (bytesReceived == m_pendingDataLen));
 
@@ -150,7 +175,12 @@ bool MQTTSocketHandler::decode_header(uint8_t*& data, size_t& len)
 
     uint32_t msg_size = length + pos;
     uint8_t message_type = m_recvBuffer[0] & 0xf0;
-    
+
+    if (m_debug)
+    {
+        trace("MQTTSocketHandler::decode_header: this=%p, message_type=%d, msg_size=%d", this, message_type, msg_size);
+    }
+
     switch (message_type)
     {
         case MQTTPUBLISH: return decode_publish_header(data, len, msg_size, pos, startPosition);
@@ -576,26 +606,32 @@ bool MQTTSocketHandler::send_publish_data(uint8_t *data, size_t len)
         trace("MQTTSocketHandler::send_publish_data: attempting to send more message data[%d] then remaining[%d], disconnecting.", m_pendingSendDataLen, len);
         return false;
     }
+
     trace("MQTTSocketHandler::send_publish_data: len[%d]", len);
     
     m_pendingSendDataLen -= len;
-    return m_downstream->send(data, len);
+    if (!m_downstream->send(data, len))
+    {
+        return false;
+    }
+
+    if ((m_pendingSendDataLen == 0) && m_pendingPing)
+    {
+        return send_ping();
+    }
+
+    return true;
 }
 
 bool MQTTSocketHandler::send_ping()
 {
     if (m_pendingSendDataLen > 0)
     {
-        return true;
-    }
-
-    uint64_t now_us = to_us_since_boot(get_absolute_time());
-    if ((now_us - m_lastKeepaliveUs)/1000000LL < m_keepaliveSeconds)
-    {
+        m_pendingPing = true;
         return true;
     }
     
-    trace("MQTTSocketHandler::send_ping: ");
+    m_pendingPing = false;
     
     uint32_t message_size = 0;
     uint8_t sendBuffer[MQTT_MAX_HEADER_SIZE] = {0};
